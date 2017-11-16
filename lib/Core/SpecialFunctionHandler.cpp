@@ -113,6 +113,7 @@ static SpecialFunctionHandler::HandlerInfo handlerInfo[] = {
   add("malloc", handleMalloc, true),
   add("memalign", handleMemalign, true),
   add("realloc", handleRealloc, true),
+  add("sbrk", handleSbrk, true),
 
   // operator delete[](void*)
   add("_ZdaPv", handleDeleteArray, false),
@@ -722,6 +723,17 @@ void SpecialFunctionHandler::handleFree(ExecutionState &state,
   assert(arguments.size()==1 &&
          "invalid number of arguments to free");
   executor.executeFree(state, arguments[0]);
+}
+
+void SpecialFunctionHandler::handleSbrk(ExecutionState &state,
+                          KInstruction *target,
+                          std::vector<ref<Expr> > &arguments) {
+  // XXX should type check args
+  assert(arguments.size()==1 &&
+         "invalid number of arguments to free");
+//  llvm::outs() << "in handle Sbrk " << arguments[0] << "\n";
+  executor.executeSbrk(state, target, arguments[0]);
+
 }
 
 void SpecialFunctionHandler::handleCheckMemoryAccess(ExecutionState &state,

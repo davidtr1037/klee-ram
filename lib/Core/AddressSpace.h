@@ -12,13 +12,16 @@
 
 #include "ObjectHolder.h"
 
+#include "Memory.h"
+#include <sys/mman.h>
 #include "klee/Expr.h"
 #include "klee/Internal/ADT/ImmutableMap.h"
 #include "klee/Internal/System/Time.h"
+#include "klee/Internal/Support/ErrorHandling.h"
 
 namespace klee {
   class ExecutionState;
-  class MemoryObject;
+//  class MemoryObject;
   class ObjectState;
   class TimingSolver;
 
@@ -62,9 +65,20 @@ namespace klee {
     ///
     /// \invariant forall o in objects, o->copyOnWriteOwner <= cowKey
     MemoryMap objects;
-
-    AddressSpace() : cowKey(1) {}
-    AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), objects(b.objects) { }
+    MemoryObject *sbrkMo;
+  public:
+    AddressSpace() : cowKey(1) {
+          void * sbrkHeapSpace = mmap(NULL, 1024*1024*80, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
+          if(sbrkHeapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
+          int sbrkHeapSize = 0;
+          sbrkMo = new MemoryObject((uint64_t)sbrkHeapSpace, sbrkHeapSize, false, true, false, NULL, NULL);
+          sbrkMo->name = "sbrkMo";
+    }
+    AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), objects(b.objects) { 
+        MemoryObject* sb = b.sbrkMo;    
+        sbrkMo = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
+        sbrkMo->name = "sbrkMoCopya";
+    }
     ~AddressSpace() {}
 
     /// Resolve address to an ObjectPair in result.

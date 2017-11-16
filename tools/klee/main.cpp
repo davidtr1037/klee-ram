@@ -720,6 +720,7 @@ static const char *modelledExternals[] = {
   "llvm.va_start",
   "llvm.va_end",
   "malloc",
+  "sbrk",
   "realloc",
   "memalign",
   "_ZdaPv",

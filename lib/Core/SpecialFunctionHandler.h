@@ -14,6 +14,7 @@
 #include <map>
 #include <vector>
 #include <string>
+#include "klee/Expr.h"
 
 namespace llvm {
   class Function;
@@ -124,6 +125,7 @@ namespace klee {
     HANDLER(handleOpenMerge);
     HANDLER(handleCloseMerge);
     HANDLER(handleNew);
+    HANDLER(handleSbrk);
     HANDLER(handleNewArray);
     HANDLER(handlePreferCex);
     HANDLER(handlePosixPreferCex);

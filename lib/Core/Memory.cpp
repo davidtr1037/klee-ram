@@ -28,6 +28,7 @@
 
 #include <cassert>
 #include <sstream>
+#include <algorithm>
 
 using namespace llvm;
 using namespace klee;
@@ -177,6 +178,14 @@ ArrayCache *ObjectState::getArrayCache() const {
 }
 
 /***/
+void ObjectState::realloc(unsigned int newSize) {
+          uint8_t *store = new uint8_t[newSize];
+          
+          memcpy(store, concreteStore, std::min(size,newSize));
+          delete[] concreteStore;
+          concreteStore = store;
+          size = newSize;
+}
 
 const UpdateList &ObjectState::getUpdates() const {
   // Constant arrays are created lazily.

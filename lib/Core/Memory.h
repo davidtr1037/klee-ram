@@ -187,6 +187,7 @@ public:
 
   const MemoryObject *getObject() const { return object; }
 
+  void realloc(unsigned int newSize);
   void setReadOnly(bool ro) { readOnly = ro; }
 
   // make contents all concrete and zero

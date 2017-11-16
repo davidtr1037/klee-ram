@@ -76,12 +76,21 @@ MemoryManager::MemoryManager(ArrayCache *_arrayCache)
     deterministicSpace = newSpace;
     nextFreeSlot = newSpace;
   }
+
+  sbrkHeapSpace = mmap(NULL, 1024*1024*80, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
+  if(sbrkHeapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
+  sbrkHeapSize = 0;
+  sbrkMo = new MemoryObject((uint64_t)sbrkHeapSpace, sbrkHeapSize, false, true, false, NULL, this);
+  sbrkMo->name = "sbrkMo";
+
+//  objects.insert(sbrkMo);
+  //TODO: replace NULL with some legit allocation
 }
 
 MemoryManager::~MemoryManager() {
   while (!objects.empty()) {
     MemoryObject *mo = *objects.begin();
-    if (!mo->isFixed && !DeterministicAllocation)
+    if (!mo->isFixed && !DeterministicAllocation && mo != sbrkMo)
       free((void *)mo->address);
     objects.erase(mo);
     delete mo;
@@ -89,6 +98,8 @@ MemoryManager::~MemoryManager() {
 
   if (DeterministicAllocation)
     munmap(deterministicSpace, spaceSize);
+ 
+ munmap(sbrkHeapSpace, 1024*1024*80);
 }
 
 MemoryObject *MemoryManager::allocate(uint64_t size, bool isLocal,
@@ -174,7 +185,7 @@ void MemoryManager::deallocate(const MemoryObject *mo) { assert(0); }
 
 void MemoryManager::markFreed(MemoryObject *mo) {
   if (objects.find(mo) != objects.end()) {
-    if (!mo->isFixed && !DeterministicAllocation)
+    if (!mo->isFixed && !DeterministicAllocation && mo != sbrkMo)
       free((void *)mo->address);
     objects.erase(mo);
   }

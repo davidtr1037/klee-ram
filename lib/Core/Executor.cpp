@@ -595,10 +595,12 @@ void Executor::initializeGlobals(ExecutionState &state) {
   // need address of a global in order to initialize some other one.
 
   // allocate memory objects for all globals
+  const GlobalVariable *vSbrk;
   for (Module::const_global_iterator i = m->global_begin(),
          e = m->global_end();
        i != e; ++i) {
     const GlobalVariable *v = &*i;
+    vSbrk = v; // terriblehack
     size_t globalObjectAlignment = getAllocationAlignment(v);
     if (i->isDeclaration()) {
       // FIXME: We have no general way of handling unknown external
@@ -694,6 +696,13 @@ void Executor::initializeGlobals(ExecutionState &state) {
       // if(i->isConstant()) os->setReadOnly(true);
     }
   }
+
+
+  MemoryObject *mo = memory->sbrkMo;
+  ObjectState *os = bindObjectInState(state, mo, false);
+  os->initializeToZero();
+
+
 }
 
 void Executor::branch(ExecutionState &state, 
@@ -3280,7 +3289,44 @@ ObjectState *Executor::bindObjectInState(ExecutionState &state,
 
   return os;
 }
+void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr> increment) {
+  ConstantExpr *ce_increment = dyn_cast<ConstantExpr>(increment);
 
+  if(!ce_increment) {
+    terminateStateOnError(state, "Symbolic arguments to sbrk are unsupported",
+                                  Model, NULL, "Unsupported sym arguments");
+    return;
+  }
+
+  MemoryObject *mo = state.addressSpace.sbrkMo;
+  uint64_t inc = ce_increment->getZExtValue();
+  mo->allocSite = state.prevPC->inst;
+  unsigned prev_size = mo->size;
+  if(!mo) {
+      bindLocal(target, state, ConstantExpr::create(-1, Expr::Int64));
+      return;
+  }
+  if(true) { //first call to sbrk
+    printf("state %p size %d, inc %d\n", &state, mo->size, inc);
+    mo->size += inc;
+    ObjectState* os;
+    printf("alloc new state %d\n", mo->size);
+    os = new ObjectState(mo);
+    os->initializeToZero();
+    printf("rerealloc state\n");
+    state.addressSpace.bindObject(mo,os);
+    printf("bind\n");
+   
+  } else { //subseqent calls
+    printf("subseqnt calls\n");
+
+  }
+  //os->realloc(mo->size);
+  
+    
+
+  bindLocal(target, state, ConstantExpr::create(mo->address + prev_size, Context::get().getPointerWidth()));
+}
 void Executor::executeAlloc(ExecutionState &state,
                             ref<Expr> size,
                             bool isLocal,

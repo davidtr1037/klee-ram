@@ -286,6 +286,9 @@ private:
                     ExactResolutionList &results,
                     const std::string &name);
 
+  void executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr> increment) ;
+       
+
   /// Allocate and bind a new object in a particular state. NOTE: This
   /// function may fork.
   ///
