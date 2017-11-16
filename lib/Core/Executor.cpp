@@ -3299,6 +3299,7 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   }
 
   MemoryObject *mo = state.addressSpace.sbrkMo;
+  mo->parent = memory;
   uint64_t inc = ce_increment->getZExtValue();
   mo->allocSite = state.prevPC->inst;
   unsigned prev_size = mo->size;
