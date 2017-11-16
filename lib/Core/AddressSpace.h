@@ -66,6 +66,7 @@ namespace klee {
     /// \invariant forall o in objects, o->copyOnWriteOwner <= cowKey
     MemoryMap objects;
     MemoryObject *sbrkMo;
+    ObjectState *sbrkOs;
   public:
     AddressSpace() : cowKey(1) {
           void * sbrkHeapSpace = mmap(NULL, 1024*1024*80, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
@@ -73,11 +74,13 @@ namespace klee {
           int sbrkHeapSize = 0;
           sbrkMo = new MemoryObject((uint64_t)sbrkHeapSpace, sbrkHeapSize, false, true, false, NULL, NULL);
           sbrkMo->name = "sbrkMo";
+          sbrkOs = new ObjectState(sbrkMo);
     }
     AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), objects(b.objects) { 
         MemoryObject* sb = b.sbrkMo;    
         sbrkMo = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
         sbrkMo->name = "sbrkMoCopya";
+        sbrkOs = new ObjectState(*b.sbrkOs);
     }
     ~AddressSpace() {}
 

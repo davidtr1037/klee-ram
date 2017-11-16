@@ -182,7 +182,8 @@ void ObjectState::realloc(unsigned int newSize) {
           uint8_t *store = new uint8_t[newSize];
           
           memcpy(store, concreteStore, std::min(size,newSize));
-          delete[] concreteStore;
+//leads to double free for some reason
+//          delete[] concreteStore;
           concreteStore = store;
           size = newSize;
 }

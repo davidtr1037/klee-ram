@@ -3289,6 +3289,8 @@ ObjectState *Executor::bindObjectInState(ExecutionState &state,
 
   return os;
 }
+
+static bool firstSbrk=true;
 void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr> increment) {
   ConstantExpr *ce_increment = dyn_cast<ConstantExpr>(increment);
 
@@ -3307,22 +3309,27 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
       bindLocal(target, state, ConstantExpr::create(-1, Expr::Int64));
       return;
   }
-  if(true) { //first call to sbrk
-    printf("state %p size %d, inc %d\n", &state, mo->size, inc);
+  if(firstSbrk) { //first call to sbrk
+    firstSbrk = false;
     mo->size += inc;
+    printf("state %p size %d, inc %d\n", &state, mo->size, inc);
     ObjectState* os;
     printf("alloc new state %d\n", mo->size);
     os = new ObjectState(mo);
     os->initializeToZero();
+    state.addressSpace.sbrkOs = os;
     printf("rerealloc state\n");
     state.addressSpace.bindObject(mo,os);
     printf("bind\n");
    
   } else { //subseqent calls
-    printf("subseqnt calls\n");
-
+//    state.addressSpace.unbindObject(mo);
+    mo->size += inc;
+    state.addressSpace.sbrkOs->realloc(mo->size);
+    state.addressSpace.sbrkOs = new ObjectState(*state.addressSpace.sbrkOs);
+    state.addressSpace.bindObject(mo,state.addressSpace.sbrkOs);
+    printf("done\n");
   }
-  //os->realloc(mo->size);
   
     
 
