@@ -30,13 +30,9 @@ private:
 
   char *deterministicSpace;
   char *nextFreeSlot;
-  void *sbrkHeapSpace;
-  size_t sbrkHeapSize;
-                 
   size_t spaceSize;
 
 public:
-  MemoryObject* sbrkMo;
   MemoryManager(ArrayCache *arrayCache);
   ~MemoryManager();
 

@@ -595,12 +595,10 @@ void Executor::initializeGlobals(ExecutionState &state) {
   // need address of a global in order to initialize some other one.
 
   // allocate memory objects for all globals
-  const GlobalVariable *vSbrk;
   for (Module::const_global_iterator i = m->global_begin(),
          e = m->global_end();
        i != e; ++i) {
     const GlobalVariable *v = &*i;
-    vSbrk = v; // terriblehack
     size_t globalObjectAlignment = getAllocationAlignment(v);
     if (i->isDeclaration()) {
       // FIXME: We have no general way of handling unknown external
@@ -696,13 +694,6 @@ void Executor::initializeGlobals(ExecutionState &state) {
       // if(i->isConstant()) os->setReadOnly(true);
     }
   }
-
-
-  MemoryObject *mo = memory->sbrkMo;
-  ObjectState *os = bindObjectInState(state, mo, false);
-  os->initializeToZero();
-
-
 }
 
 void Executor::branch(ExecutionState &state, 
