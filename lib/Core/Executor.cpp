@@ -3294,9 +3294,19 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   MemoryObject *mo = state.addressSpace.sbrkMo;
   mo->parent = memory;
   uint64_t inc = ce_increment->getZExtValue();
+  if(inc == 0) {
+    bindLocal(target, state, ConstantExpr::create(mo->address + mo->size, Context::get().getPointerWidth()));
+    return;
+  }
+  if(inc > 20000) {
+    terminateStateOnError(state, "Negative or big arguments to sbrk are not supported",
+                                  Model, NULL, "Unsupported sym arguments");
+    return;
+  
+  }
   mo->allocSite = state.prevPC->inst;
   unsigned prev_size = mo->size;
-  printf("In state %p current os %p, by %d\n", &state, state.addressSpace.sbrkOs, inc);
+  printf("In state %p current os %p, size %d, by %d\n", &state, state.addressSpace.sbrkOs, state.addressSpace.sbrkOs->size, inc);
   if(!mo) {
       bindLocal(target, state, ConstantExpr::create(-1, Expr::Int64));
       return;
@@ -3313,14 +3323,16 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
     printf("rerealloc state\n");
     state.addressSpace.bindObject(mo,os);
     printf("bind\n");
+    printf("In state %p current os %p, size %d, by %d\n", &state, state.addressSpace.sbrkOs, state.addressSpace.sbrkOs->size, inc);
    
   } else { //subseqent calls
 //    state.addressSpace.unbindObject(mo);
     mo->size += inc;
+    ObjectState* prev_os = state.addressSpace.sbrkOs;
     state.addressSpace.sbrkOs->realloc(mo->size);
     state.addressSpace.sbrkOs = new ObjectState(*state.addressSpace.sbrkOs);
     state.addressSpace.bindObject(mo,state.addressSpace.sbrkOs);
-    printf("done\n");
+    printf("done %p to %p\n", prev_os, state.addressSpace.sbrkOs);
   }
   
     
