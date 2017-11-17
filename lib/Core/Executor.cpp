@@ -3305,6 +3305,7 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   uint64_t inc = ce_increment->getZExtValue();
   mo->allocSite = state.prevPC->inst;
   unsigned prev_size = mo->size;
+  printf("In state %p current os %p, by %d\n", &state, state.addressSpace.sbrkOs, inc);
   if(!mo) {
       bindLocal(target, state, ConstantExpr::create(-1, Expr::Int64));
       return;

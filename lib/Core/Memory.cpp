@@ -182,6 +182,7 @@ void ObjectState::realloc(unsigned int newSize) {
           uint8_t *store = new uint8_t[newSize];
           
           memcpy(store, concreteStore, std::min(size,newSize));
+          printf("Os %p Realloc size %d, newSize %d from %p to %p\n", this, size, newSize, concreteStore, store);
 //leads to double free for some reason
 //          delete[] concreteStore;
           concreteStore = store;
