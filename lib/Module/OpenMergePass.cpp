@@ -17,18 +17,31 @@ char OpenMergePass::ID = 0;
 
 bool OpenMergePass::doInitialization(Module &M) {
       Constant* c  = M.getOrInsertFunction("klee_open_merge", 
-                                           TypeBuilder<void(), false>::get(getGlobalContext()),
-                                           AttributeSet().addAttribute(M.getContext(), 1U, Attribute::NoAlias) 
+                                           TypeBuilder<void(), false>::get(getGlobalContext())
                                           );
       kleeOpenMerge = cast<Function>(c);
 
+      c  = M.getOrInsertFunction("klee_close_merge", 
+                                  TypeBuilder<void(), false>::get(getGlobalContext())
+                                 );
+
+      kleeCloseMerge = cast<Function>(c);
 }
 
 bool OpenMergePass::runOnFunction(Function& F) {
-    std::vector<Value*> paramArrayRef;
-    Instruction *call_open_merge =  CallInst::Create(kleeOpenMerge, paramArrayRef);
-    F.getEntryBlock().getInstList().push_front(call_open_merge);
+//    F.getEntryBlock().getInstList().push_front(call_open_merge);
+    bool ret = false;
+    for(auto bb = F.begin(), be = F.end(); bb != be; ++bb) {
+      for(auto inst = bb->begin(), ie = bb->end(); inst!= ie; ++inst) {
+         if(isa<LoadInst>(inst)) {
 
-    outs() << "In function\n";
-    return false;
+            CallInst::Create(kleeOpenMerge)->insertBefore(inst);
+            CallInst::Create(kleeCloseMerge)->insertAfter(inst);
+            ret = true;
+            outs() << "load\n";
+         }
+      }
+    }
+
+    return ret;
 }
