@@ -18,6 +18,7 @@ klee_add_component(kleeModule
   Optimize.cpp
   PhiCleaner.cpp
   RaiseAsm.cpp
+  OpenMergePass.cpp
   Scalarizer.cpp
 )
 

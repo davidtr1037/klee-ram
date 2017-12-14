@@ -16,6 +16,7 @@
 #include "llvm/CodeGen/IntrinsicLowering.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
 
@@ -156,6 +157,19 @@ private:
 #if LLVM_VERSION_CODE == LLVM_VERSION(3, 4)
 llvm::FunctionPass *createScalarizerPass();
 #endif
+
+
+class OpenMergePass : public llvm::FunctionPass {
+private:
+    llvm::Function* kleeOpenMerge;
+    llvm::Function* kleeCloseMerge;
+public:
+    static char ID;
+    OpenMergePass() : llvm::FunctionPass(ID) {}
+    bool doInitialization(llvm::Module &M);
+    bool runOnFunction(llvm::Function &F);
+
+};
 
 /// InstructionOperandTypeCheckPass - Type checks the types of instruction
 /// operands to check that they conform to invariants expected by the Executor.

@@ -68,6 +68,10 @@ namespace {
   };
 
   cl::opt<bool>
+  OpenMerge("open-merge",
+                        cl::desc("Inserts klee_open/close_merge before and after every double dereference"));
+
+  cl::opt<bool>
   OutputSource("output-source",
                cl::desc("Write the assembly for the final transformed source"),
                cl::init(true));
@@ -219,6 +223,9 @@ void KModule::instrument(const Interpreter::ModuleOptions &opts) {
   // optimize is seeing what is as close as possible to the final
   // module.
   LegacyLLVMPassManagerTy pm;
+  if(OpenMerge) {
+    pm.add(new OpenMergePass());
+  }
   pm.add(new RaiseAsmPass());
 
   // This pass will scalarize as much code as possible so that the Executor

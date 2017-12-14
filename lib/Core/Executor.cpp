@@ -3543,6 +3543,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   // XXX there is some query wasteage here. who cares?
   ExecutionState *unbound = &state;
   
+  outs() << "Multiple resolution!\n";
   for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
     const MemoryObject *mo = i->first;
     const ObjectState *os = i->second;
