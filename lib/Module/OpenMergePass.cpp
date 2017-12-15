@@ -26,6 +26,23 @@ bool OpenMergePass::doInitialization(Module &M) {
                                  );
 
       kleeCloseMerge = cast<Function>(c);
+      return false;
+}
+
+bool OpenMergePass::isADoubleDereference(LoadInst* load) {
+  if(!load) return false;
+
+  if(GetElementPtrInst* getElemPtr = dyn_cast<GetElementPtrInst>(load->getPointerOperand())) {
+    if(LoadInst* load1 = dyn_cast<LoadInst>(getElemPtr->getPointerOperand())) {
+      Type* load1_type = load1->getPointerOperand()->getType();
+      if(PointerType* type1 = dyn_cast<PointerType>(load1_type)) { 
+         if(PointerType* type = dyn_cast<PointerType>(type1->getElementType())) {
+            return !isa<PointerType>(type->getElementType());
+         }
+      }
+    }
+  }
+  return false;
 }
 
 bool OpenMergePass::runOnFunction(Function& F) {
@@ -33,12 +50,11 @@ bool OpenMergePass::runOnFunction(Function& F) {
     bool ret = false;
     for(auto bb = F.begin(), be = F.end(); bb != be; ++bb) {
       for(auto inst = bb->begin(), ie = bb->end(); inst!= ie; ++inst) {
-         if(isa<LoadInst>(inst)) {
-
-            CallInst::Create(kleeOpenMerge)->insertBefore(inst);
-            CallInst::Create(kleeCloseMerge)->insertAfter(inst);
-            ret = true;
-            outs() << "load\n";
+         if(isADoubleDereference(dyn_cast<LoadInst>(inst))) {
+           CallInst::Create(kleeOpenMerge)->insertBefore(inst);
+           CallInst::Create(kleeCloseMerge)->insertAfter(inst);
+           ret = true;
+    //       outs() << "load\n";
          }
       }
     }

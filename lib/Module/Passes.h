@@ -163,6 +163,7 @@ class OpenMergePass : public llvm::FunctionPass {
 private:
     llvm::Function* kleeOpenMerge;
     llvm::Function* kleeCloseMerge;
+    bool isADoubleDereference(llvm::LoadInst*);
 public:
     static char ID;
     OpenMergePass() : llvm::FunctionPass(ID) {}
