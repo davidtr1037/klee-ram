@@ -17,15 +17,15 @@ char OpenMergePass::ID = 0;
 
 bool OpenMergePass::doInitialization(Module &M) {
       Constant* c  = M.getOrInsertFunction("klee_open_merge", 
-                                           TypeBuilder<void(), false>::get(getGlobalContext())
+                                           TypeBuilder<void(...), false>::get(getGlobalContext())
                                           );
-      kleeOpenMerge = cast<Function>(c);
+      kleeOpenMerge = dyn_cast<Function>(c);
 
       c  = M.getOrInsertFunction("klee_close_merge", 
-                                  TypeBuilder<void(), false>::get(getGlobalContext())
+                                  TypeBuilder<void(...), false>::get(getGlobalContext())
                                  );
 
-      kleeCloseMerge = cast<Function>(c);
+      kleeCloseMerge = dyn_cast<Function>(c);
       return false;
 }
 
