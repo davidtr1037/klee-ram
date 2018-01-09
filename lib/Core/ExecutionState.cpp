@@ -71,6 +71,7 @@ ExecutionState::ExecutionState(KFunction *kf) :
 
     instsSinceCovNew(0),
     coveredNew(false),
+    needToClose(false),
     forkDisabled(false),
     ptreeNode(0),
     steppedInstructions(0){
@@ -123,7 +124,8 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     symbolics(state.symbolics),
     arrayNames(state.arrayNames),
     openMergeStack(state.openMergeStack),
-    steppedInstructions(state.steppedInstructions)
+    steppedInstructions(state.steppedInstructions),
+    needToClose(state.needToClose)
 {
   for (unsigned int i=0; i<symbolics.size(); i++)
     symbolics[i].first->refCount++;

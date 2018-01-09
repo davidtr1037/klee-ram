@@ -47,6 +47,11 @@ namespace {
                    cl::desc("Silently terminate paths with an infeasible "
                             "condition given to klee_assume() rather than "
                             "emitting an error (default=false)"));
+  cl::opt<bool>
+  SbrkMalloc("sbrk-malloc",
+                   cl::init(false),
+                   cl::desc("Dumb single pool allocator"));
+
 }
 
 
@@ -426,7 +431,10 @@ void SpecialFunctionHandler::handleMalloc(ExecutionState &state,
                                   std::vector<ref<Expr> > &arguments) {
   // XXX should type check args
   assert(arguments.size()==1 && "invalid number of arguments to malloc");
-  executor.executeAlloc(state, arguments[0], false, target);
+  if(SbrkMalloc) {
+    executor.executeSbrk(state, target, arguments[0]);
+  } else
+    executor.executeAlloc(state, arguments[0], false, target);
 }
 
 void SpecialFunctionHandler::handleMemalign(ExecutionState &state,
@@ -676,6 +684,9 @@ void SpecialFunctionHandler::handleCalloc(ExecutionState &state,
 
   ref<Expr> size = MulExpr::create(arguments[0],
                                    arguments[1]);
+  if(SbrkMalloc) {
+    executor.executeSbrk(state, target, size);
+  } else
   executor.executeAlloc(state, size, false, target, true);
 }
 
@@ -687,6 +698,10 @@ void SpecialFunctionHandler::handleRealloc(ExecutionState &state,
          "invalid number of arguments to realloc");
   ref<Expr> address = arguments[0];
   ref<Expr> size = arguments[1];
+  if(SbrkMalloc) {
+    executor.executeSbrk(state, target, size);
+    return;
+  }
 
   Executor::StatePair zeroSize = executor.fork(state, 
                                                Expr::createIsZero(size), 
@@ -722,6 +737,7 @@ void SpecialFunctionHandler::handleFree(ExecutionState &state,
   // XXX should type check args
   assert(arguments.size()==1 &&
          "invalid number of arguments to free");
+  if(SbrkMalloc) return;
   executor.executeFree(state, arguments[0]);
 }
 

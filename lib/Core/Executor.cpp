@@ -103,6 +103,14 @@ namespace {
                    cl::init(true),
 		   cl::desc("Dump test cases for all active states on exit (default=on)"));
   
+  cl::opt<bool>
+  AllowExternalSymCalls("allow-external-sym-calls",
+                        cl::init(false),
+			cl::desc("Allow calls with symbolic arguments to external functions.  This concretizes the symbolic arguments.  (default=off)"));
+
+cl::opt<bool>
+  MergeMRes("merge-resolution",
+                        cl::desc("Merge multiple resolutions"));
   /// The different query logging solvers that can switched on/off
   enum PrintDebugInstructionsType {
     STDERR_ALL, ///
@@ -1512,6 +1520,17 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
+  if(MergeMRes && state.needToClose) {
+     if (state.openMergeStack.empty()) {
+      std::ostringstream warning;
+      warning << &state << " ran into a close at " << i << " without a preceding open\n";
+      klee_warning(warning.str().c_str());
+    } else {
+      state.openMergeStack.back()->addClosedState(&state, i);
+      state.openMergeStack.pop_back();
+    }
+    state.needToClose = false;
+  }
   switch (i->getOpcode()) {
     // Control flow
   case Instruction::Ret: {
@@ -3288,7 +3307,7 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   if(!ce_increment) {
     terminateStateOnError(state, "Symbolic arguments to sbrk are unsupported",
                                   Model, NULL, "Unsupported sym arguments");
-    return;
+    return ;
   }
 
   MemoryObject *mo = state.addressSpace.sbrkMo;
@@ -3299,9 +3318,10 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
     return;
   }
   if(inc > 20000) {
+    errs() << "inc is: " << inc << "\n";
     terminateStateOnError(state, "Negative or big arguments to sbrk are not supported",
                                   Model, NULL, "Unsupported sym arguments");
-    return;
+    return ;
   
   }
   mo->allocSite = state.prevPC->inst;
@@ -3309,7 +3329,7 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   printf("In state %p current os %p, size %d, by %d\n", &state, state.addressSpace.sbrkOs, state.addressSpace.sbrkOs->size, inc);
   if(!mo) {
       bindLocal(target, state, ConstantExpr::create(-1, Expr::Int64));
-      return;
+      return ;
   }
   if(firstSbrk) { //first call to sbrk
     firstSbrk = false;
@@ -3601,7 +3621,15 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   // XXX there is some query wasteage here. who cares?
   ExecutionState *unbound = &state;
   
-  outs() << "Multiple resolution!\n";
+  outs() << "Multiple resolution! " << rl.size() << "\n";
+  if(rl.size() > 1) 
+      klee_warning("Multiple addresses resolution ... forking!\n");
+
+  if(MergeMRes && rl.size() > 1) {
+    state.openMergeStack.push_back(
+      ref<MergeHandler>(new MergeHandler(this)));
+    state.needToClose = true;
+  }
   for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
     const MemoryObject *mo = i->first;
     const ObjectState *os = i->second;

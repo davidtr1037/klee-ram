@@ -152,6 +152,7 @@ public:
 
   // The numbers of times this state has run through Executor::stepInstruction
   std::uint64_t steppedInstructions;
+  bool needToClose;
 
 private:
   ExecutionState() : ptreeNode(0) {}
