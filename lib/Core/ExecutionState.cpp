@@ -71,7 +71,7 @@ ExecutionState::ExecutionState(KFunction *kf) :
 
     instsSinceCovNew(0),
     coveredNew(false),
-    needToClose(false),
+    needToClose(nullptr),
     forkDisabled(false),
     ptreeNode(0),
     steppedInstructions(0){

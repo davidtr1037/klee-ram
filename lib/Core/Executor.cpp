@@ -1520,17 +1520,6 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
-  if(MergeMRes && state.needToClose) {
-     if (state.openMergeStack.empty()) {
-      std::ostringstream warning;
-      warning << &state << " ran into a close at " << i << " without a preceding open\n";
-      klee_warning(warning.str().c_str());
-    } else {
-      state.openMergeStack.back()->addClosedState(&state, i);
-      state.openMergeStack.pop_back();
-    }
-    state.needToClose = false;
-  }
   switch (i->getOpcode()) {
     // Control flow
   case Instruction::Ret: {
@@ -2644,6 +2633,22 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     terminateStateOnExecError(state, "illegal instruction");
     break;
   }
+
+  if(MergeMRes && state.needToClose != nullptr) {
+    i->print(errs());
+    if(state.needToClose == i) {
+      errs() << " Closing!";
+      state.pc->printFileLine(errs());
+      errs() << "\n\n";
+      state.openMergeStack.back()->addClosedState(&state, i);
+      state.openMergeStack.pop_back();
+      state.needToClose = nullptr;
+    } else { 
+    errs() << " Skipping! ";
+    state.pc->printFileLine(errs());
+    errs() << "\n";
+    }
+  }
 }
 
 void Executor::updateStates(ExecutionState *current) {
@@ -3625,10 +3630,16 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   if(rl.size() > 1) 
       klee_warning("Multiple addresses resolution ... forking!\n");
 
-  if(MergeMRes && rl.size() > 1) {
+  if(MergeMRes && (nullptr == state.needToClose)  && rl.size() > 1) {
     state.openMergeStack.push_back(
       ref<MergeHandler>(new MergeHandler(this)));
-    state.needToClose = true;
+    auto it = target->inst->getParent()->rbegin();
+    it++;
+    state.needToClose = &*it;
+    errs() << "Open ";
+    state.pc->printFileLine(errs());
+    state.needToClose->print(errs());
+    errs() << "\n";
   }
   for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
     const MemoryObject *mo = i->first;
