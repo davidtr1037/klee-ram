@@ -74,6 +74,7 @@ bool AddressSpace::mergeResolution(ResolutionList &rl, MemoryManager* memoryM) {
    std::sort(rl.begin(), rl.end(), [](ObjectPair a, ObjectPair b) {return a.first->address < b.first->address;});
    const MemoryObject *firstMo = rl.front().first;
    uint64_t newObjSize = (rl.back().first->address + rl.back().first->size) - firstMo->address;
+   llvm::outs() << "Big size " << newObjSize <<  "in addrs space " << this << "\n";
    for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
         MemoryObject *mo = const_cast<MemoryObject*>(i->first);
         memoryM->markFreed(mo);
@@ -84,7 +85,6 @@ bool AddressSpace::mergeResolution(ResolutionList &rl, MemoryManager* memoryM) {
    ObjectState *newBigOs = new ObjectState(newBigMo);
 
 
-   llvm::outs() << "Big size " << newObjSize << "\n";
    for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
         MemoryObject *mo = const_cast<MemoryObject*>(i->first);
         ObjectState *os = const_cast<ObjectState*>(i->second);

@@ -154,6 +154,7 @@ MemoryObject *MemoryManager::allocate(uint64_t size, bool isLocal,
 
 MemoryObject *MemoryManager::allocateFixed(uint64_t address, uint64_t size,
                                            const llvm::Value *allocSite) {
+#define NDEBUG
 #ifndef NDEBUG
   for (objects_ty::iterator it = objects.begin(), ie = objects.end(); it != ie;
        ++it) {
@@ -162,6 +163,7 @@ MemoryObject *MemoryManager::allocateFixed(uint64_t address, uint64_t size,
       klee_error("Trying to allocate an overlapping object");
   }
 #endif
+#undef NDEBUG
 
   ++stats::allocations;
   MemoryObject *res =
