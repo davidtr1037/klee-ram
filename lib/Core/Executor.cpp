@@ -111,6 +111,9 @@ namespace {
 cl::opt<bool>
   MergeMRes("merge-resolution",
                         cl::desc("Merge multiple resolutions"));
+cl::opt<bool>
+  MergeRL("merge-rl",
+                        cl::desc("Merge all resolution list objects"));
   /// The different query logging solvers that can switched on/off
   enum PrintDebugInstructionsType {
     STDERR_ALL, ///
@@ -3361,8 +3364,6 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
     printf("done %p to %p\n", prev_os, state.addressSpace.sbrkOs);
   }
   
-    
-
   bindLocal(target, state, ConstantExpr::create(mo->address + prev_size, Context::get().getPointerWidth()));
 }
 void Executor::executeAlloc(ExecutionState &state,
@@ -3642,6 +3643,11 @@ void Executor::executeMemoryOperation(ExecutionState &state,
     //state.pc->printFileLine(errs());
     //state.needToClose->print(errs());
     //errs() << "\n";
+  }
+  if(MergeRL && rl.size() > 1) {
+      state.addressSpace.mergeResolution(rl, memory);
+      outs() << "Recurse!\n";
+      return executeMemoryOperation(state,isWrite, address, value, target);
   }
   for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
     const MemoryObject *mo = i->first;

@@ -13,6 +13,7 @@
 #include "ObjectHolder.h"
 
 #include "Memory.h"
+#include "MemoryManager.h"
 #include <sys/mman.h>
 #include "klee/Expr.h"
 #include "klee/Internal/ADT/ImmutableMap.h"
@@ -116,6 +117,8 @@ namespace klee {
                  ResolutionList &rl, 
                  unsigned maxResolutions=0,
                  time::Span timeout=time::Span()) const;
+
+    bool mergeResolution(ResolutionList &rl, MemoryManager* memoeryM);
 
     /***/
 

@@ -70,6 +70,34 @@ bool AddressSpace::resolveOne(const ref<ConstantExpr> &addr,
   return false;
 }
 
+bool AddressSpace::mergeResolution(ResolutionList &rl, MemoryManager* memoryM) {
+   std::sort(rl.begin(), rl.end());
+   const MemoryObject *firstMo = rl.front().first;
+   uint64_t newObjSize = (rl.back().first->address + rl.back().first->size) - firstMo->address;
+   for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
+        MemoryObject *mo = const_cast<MemoryObject*>(i->first);
+        memoryM->markFreed(mo);
+    }   
+   MemoryObject *newBigMo = memoryM->allocateFixed(firstMo->address,newObjSize, firstMo->allocSite);
+
+   ObjectState *newBigOs = new ObjectState(newBigMo);
+
+
+   llvm::outs() << "Big size " << newObjSize << "\n";
+   for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
+        MemoryObject *mo = const_cast<MemoryObject*>(i->first);
+        ObjectState *os = const_cast<ObjectState*>(i->second);
+        llvm::outs() << mo->address << " " << mo->size << "\n";
+        for(int i = 0; i < os->size; i++) {
+          newBigOs->write((mo->address - newBigMo->address) + i, os->read8(i));
+
+        }
+        unbindObject(mo);
+    }   
+    llvm::outs() << " - END\n";
+    bindObject(newBigMo, newBigOs);
+    return false;
+}
 bool AddressSpace::resolveOne(ExecutionState &state,
                               TimingSolver *solver,
                               ref<Expr> address,
