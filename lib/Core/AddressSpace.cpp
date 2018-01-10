@@ -71,12 +71,13 @@ bool AddressSpace::resolveOne(const ref<ConstantExpr> &addr,
 }
 
 bool AddressSpace::mergeResolution(ResolutionList &rl, MemoryManager* memoryM) {
-   std::sort(rl.begin(), rl.end());
+   std::sort(rl.begin(), rl.end(), [](ObjectPair a, ObjectPair b) {return a.first->address < b.first->address;});
    const MemoryObject *firstMo = rl.front().first;
    uint64_t newObjSize = (rl.back().first->address + rl.back().first->size) - firstMo->address;
    for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
         MemoryObject *mo = const_cast<MemoryObject*>(i->first);
         memoryM->markFreed(mo);
+        llvm::outs() << mo->address << " " << mo->size << "\n";
     }   
    MemoryObject *newBigMo = memoryM->allocateFixed(firstMo->address,newObjSize, firstMo->allocSite);
 
@@ -87,7 +88,6 @@ bool AddressSpace::mergeResolution(ResolutionList &rl, MemoryManager* memoryM) {
    for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
         MemoryObject *mo = const_cast<MemoryObject*>(i->first);
         ObjectState *os = const_cast<ObjectState*>(i->second);
-        llvm::outs() << mo->address << " " << mo->size << "\n";
         for(int i = 0; i < os->size; i++) {
           newBigOs->write((mo->address - newBigMo->address) + i, os->read8(i));
 
@@ -360,4 +360,3 @@ bool AddressSpace::copyInConcrete(const MemoryObject *mo, const ObjectState *os,
 bool MemoryObjectLT::operator()(const MemoryObject *a, const MemoryObject *b) const {
   return a->address < b->address;
 }
-
