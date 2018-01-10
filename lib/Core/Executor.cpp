@@ -1520,6 +1520,7 @@ static inline const llvm::fltSemantics * fpWidthToSemantics(unsigned width) {
 
 void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   Instruction *i = ki->inst;
+
   switch (i->getOpcode()) {
     // Control flow
   case Instruction::Ret: {
@@ -2635,18 +2636,18 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   }
 
   if(MergeMRes && state.needToClose != nullptr) {
-    i->print(errs());
+    //i->print(errs());
     if(state.needToClose == i) {
-      errs() << " Closing!";
-      state.pc->printFileLine(errs());
-      errs() << "\n\n";
+      //errs() << " Closing!";
+      //state.pc->printFileLine(errs());
+      //errs() << "\n\n";
       state.openMergeStack.back()->addClosedState(&state, i);
       state.openMergeStack.pop_back();
       state.needToClose = nullptr;
     } else { 
-    errs() << " Skipping! ";
-    state.pc->printFileLine(errs());
-    errs() << "\n";
+    //errs() << " Skipping! ";
+    //state.pc->printFileLine(errs());
+    //errs() << "\n";
     }
   }
 }
@@ -3627,8 +3628,9 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   ExecutionState *unbound = &state;
   
   outs() << "Multiple resolution! " << rl.size() << "\n";
-  if(rl.size() > 1) 
+  if(rl.size() > 1)  {
       klee_warning("Multiple addresses resolution ... forking!\n");
+  }
 
   if(MergeMRes && (nullptr == state.needToClose)  && rl.size() > 1) {
     state.openMergeStack.push_back(
@@ -3636,10 +3638,10 @@ void Executor::executeMemoryOperation(ExecutionState &state,
     auto it = target->inst->getParent()->rbegin();
     it++;
     state.needToClose = &*it;
-    errs() << "Open ";
-    state.pc->printFileLine(errs());
-    state.needToClose->print(errs());
-    errs() << "\n";
+    //errs() << "Open ";
+    //state.pc->printFileLine(errs());
+    //state.needToClose->print(errs());
+    //errs() << "\n";
   }
   for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
     const MemoryObject *mo = i->first;
