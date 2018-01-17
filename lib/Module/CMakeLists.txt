@@ -34,6 +34,11 @@ set(LLVM_COMPONENTS
 
 klee_get_llvm_libs(LLVM_LIBS ${LLVM_COMPONENTS})
 target_link_libraries(kleeModule PUBLIC ${LLVM_LIBS})
+
+target_include_directories(kleeModule PUBLIC
+    ${SVF_ROOT_DIR}/include
+)
 target_link_libraries(kleeModule PRIVATE
   kleeSupport
+  kleeAnalysis
 )

@@ -16,12 +16,13 @@
 // We define wrappers around the LLVM DEBUG macros that are conditionalized on
 // whether the LLVM we are building against has the symbols needed by these
 // checks.
-
+#undef ENABLE_KLEE_DEBUG
 #ifdef ENABLE_KLEE_DEBUG
 #define KLEE_DEBUG_WITH_TYPE(TYPE, X) DEBUG_WITH_TYPE(TYPE, X)
 #else
 #define KLEE_DEBUG_WITH_TYPE(TYPE, X) do { } while (0)
 #endif
 #define KLEE_DEBUG(X) KLEE_DEBUG_WITH_TYPE(DEBUG_TYPE, X)
+
 
 #endif

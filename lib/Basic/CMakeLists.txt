@@ -19,6 +19,9 @@ set(LLVM_COMPONENTS
 klee_get_llvm_libs(LLVM_LIBS ${LLVM_COMPONENTS})
 target_link_libraries(kleeBasic PUBLIC ${LLVM_LIBS})
 
+target_include_directories(kleeBasic PUBLIC
+  ${SVF_ROOT_DIR}/include
+)
 target_link_libraries(kleeBasic PRIVATE
   # FIXME: THIS IS STUPID.
   # `ConstructSolverChain.cpp` should be in

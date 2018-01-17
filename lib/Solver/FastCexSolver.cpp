@@ -441,8 +441,8 @@ public:
   }
 
   void propogatePossibleValues(ref<Expr> e, CexValueData range) {
-    KLEE_DEBUG(llvm::errs() << "propogate: " << range << " for\n"
-               << e << "\n");
+    //KLEE_DEBUG(llvm::errs() << "propogate: " << range << " for\n"
+     //          << e << "\n");
 
     switch (e->getKind()) {
     case Expr::Constant:
@@ -1009,7 +1009,7 @@ static bool propogateValues(const Query& query, CexData &cd,
     cd.propogateExactValue(query.expr, 0);
   }
 
-  KLEE_DEBUG(cd.dump());
+  //KLEE_DEBUG(cd.dump());
   
   // Check the result.
   bool hasSatisfyingAssignment = true;

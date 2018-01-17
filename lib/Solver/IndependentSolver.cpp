@@ -350,6 +350,7 @@ IndependentElementSet getIndependentConstraints(const Query& query,
     worklist.swap(newWorklist);
   } while (!done);
 
+  /*
   KLEE_DEBUG(
     std::set< ref<Expr> > reqset(result.begin(), result.end());
     errs() << "--\n";
@@ -364,6 +365,7 @@ IndependentElementSet getIndependentConstraints(const Query& query,
     }
     errs() << "elts closure: " << eltsClosure << "\n";
  );
+  */
 
 
   return eltsClosure;

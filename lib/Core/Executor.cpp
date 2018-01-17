@@ -53,6 +53,9 @@
 #include "../Expr/ArrayExprOptimizer.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringExtras.h"
+#include "klee/Internal/Analysis/AAPass.h"
+
+#include "llvm/IR/Function.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
@@ -69,6 +72,8 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/raw_ostream.h"
+
+
 
 #if LLVM_VERSION_CODE < LLVM_VERSION(3, 5)
 #include "llvm/Support/CallSite.h"
@@ -319,6 +324,10 @@ cl::opt<bool>
       cl::desc("Terminates a state after the limit of stack frames is reached "
                "(default=8192). Disable check with 0."),
       cl::init(8192));
+  cl::opt<bool>
+  PointerAnalysisMem("pts",
+            cl::desc("Use pointer analysis"),
+            cl::init(false));
 }
 
 
@@ -445,7 +454,13 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
   kmodule->optimiseAndPrepare(opts, preservedFunctions);
 
   // 4.) Manifest the module
-  kmodule->manifest(interpreterHandler, StatsTracker::useStatistics());
+  AAPass* aa = nullptr;
+  if(PointerAnalysisMem) {
+      aa = new AAPass();
+      aa->setPAType(PointerAnalysis::Andersen_WPA);
+  }
+
+  kmodule->manifest(interpreterHandler, StatsTracker::useStatistics(), aa);
 
   specialFunctionHandler->bind();
 
@@ -2737,7 +2752,7 @@ void Executor::bindInstructionConstants(KInstruction *KI) {
   KGEPInstruction *kgepi = static_cast<KGEPInstruction*>(KI);
 
   if (GetElementPtrInst *gepi = dyn_cast<GetElementPtrInst>(KI->inst)) {
-    computeOffsets(kgepi, gep_type_begin(gepi), gep_type_end(gepi));
+    computeOffsets(kgepi, klee::gep_type_begin(gepi), klee::gep_type_end(gepi));
   } else if (InsertValueInst *ivi = dyn_cast<InsertValueInst>(KI->inst)) {
     computeOffsets(kgepi, iv_type_begin(ivi), iv_type_end(ivi));
     assert(kgepi->indices.empty() && "InsertValue constant offset expected");

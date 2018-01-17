@@ -31,3 +31,6 @@ set(LLVM_COMPONENTS
 )
 klee_get_llvm_libs(LLVM_LIBS ${LLVM_COMPONENTS})
 target_link_libraries(kleaverExpr PUBLIC ${LLVM_LIBS})
+target_include_directories(kleaverExpr PUBLIC
+  ${SVF_ROOT_DIR}/include
+)

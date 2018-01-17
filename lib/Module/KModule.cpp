@@ -200,6 +200,7 @@ void KModule::addInternalFunction(const char* functionName){
   internalFunctions.insert(internalFunction);
 }
 
+<<<<<<< HEAD
 bool KModule::link(std::vector<std::unique_ptr<llvm::Module>> &modules,
                    const std::string &entryPoint) {
   auto numRemainingModules = modules.size();
@@ -290,7 +291,7 @@ void KModule::optimiseAndPrepare(
   }
 }
 
-void KModule::manifest(InterpreterHandler *ih, bool forceSourceOutput) {
+void KModule::manifest(InterpreterHandler *ih, bool forceSourceOutput, AAPass *aa) {
   if (OutputSource || forceSourceOutput) {
     std::unique_ptr<llvm::raw_fd_ostream> os(ih->openOutputFile("assembly.ll"));
     assert(os && !os->has_error() && "unable to open source output");
@@ -304,6 +305,16 @@ void KModule::manifest(InterpreterHandler *ih, bool forceSourceOutput) {
 #else
     WriteBitcodeToFile(module.get(), *f);
 #endif
+  }
+  
+  if(aa != nullptr) {
+    /* run pointer analysis */
+    klee_message("Runnining pointer analysis...");
+    PassManager passManager;
+    passManager.add(aa);
+    passManager.run(*module);
+    klee_message("Finished pointer analysis");
+
   }
 
   /* Build shadow structures */

@@ -12,6 +12,7 @@
 
 #include "klee/Config/Version.h"
 #include "klee/Interpreter.h"
+#include "klee/Internal/Analysis/AAPass.h"
 
 #include "llvm/ADT/ArrayRef.h"
 
@@ -123,7 +124,7 @@ namespace klee {
     /// @param forceSourceOutput true if assembly.ll should be created
     ///
     // FIXME: ihandler should not be here
-    void manifest(InterpreterHandler *ih, bool forceSourceOutput);
+    void manifest(InterpreterHandler *ih, bool forceSourceOutput, AAPass* aa);
 
     /// Link the provided modules together as one KLEE module.
     ///
