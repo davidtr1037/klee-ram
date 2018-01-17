@@ -851,7 +851,7 @@ void SpecialFunctionHandler::handleMakeSymbolic(ExecutionState &state,
     bool res;
     bool success __attribute__ ((unused)) =
       executor.solver->mustBeTrue(*s, 
-                                  EqExpr::create(ZExtExpr::create(arguments[1],
+                                  UleExpr::create(ZExtExpr::create(arguments[1],
                                                                   Context::get().getPointerWidth()),
                                                  mo->getSizeExpr()),
                                   res);
