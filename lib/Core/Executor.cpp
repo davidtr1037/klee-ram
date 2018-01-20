@@ -89,6 +89,7 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 #include <sys/mman.h>
 
@@ -3381,13 +3382,40 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   
   bindLocal(target, state, ConstantExpr::create(mo->address + prev_size, Context::get().getPointerWidth()));
 }
+
+std::unordered_map<KInstruction*, int>  allocMap;
+int allocCnt = 0;
 void Executor::executeAlloc(ExecutionState &state,
                             ref<Expr> size,
                             bool isLocal,
                             KInstruction *target,
                             bool zeroMemory,
+<<<<<<< HEAD
                             const ObjectState *reallocFrom,
                             size_t allocationAlignment) {
+=======
+                            const ObjectState *reallocFrom) {
+
+  if(aa != nullptr) {
+      int allocSite = -1;
+      for( auto & a : allocMap) {
+          KInstruction * kinst = a.first;
+          int num = a.second;
+          //errs() << aa->getPassName() << "\n" ;
+          AliasAnalysis::AliasResult aresult = aa->alias(kinst->inst, target->inst); 
+//          errs() << "Allias results " << aresult << "\n"; 
+          if(aresult) {
+            errs() << "Alias: " << kinst->printFileLine() << " to " << target->printFileLine() << "  with " << aresult << "\n";
+            allocSite = num;
+          }
+      }
+      if(allocSite == -1) {
+        allocMap[target] = allocCnt++;
+      }
+  
+  }
+
+>>>>>>> b2c8357... First alias analysis
   size = toUnique(state, size);
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
     const llvm::Value *allocSite = state.prevPC->inst;

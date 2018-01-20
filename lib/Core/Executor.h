@@ -21,6 +21,7 @@
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
 #include "klee/Internal/System/Time.h"
+#include "klee/Internal/Analysis/AAPass.h"
 #include "klee/util/ArrayCache.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -236,6 +237,7 @@ private:
 
   /// Optimizes expressions
   ExprOptimizer optimizer;
+  AAPass* aa;
 
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);

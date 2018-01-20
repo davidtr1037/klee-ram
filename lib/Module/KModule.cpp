@@ -310,9 +310,7 @@ void KModule::manifest(InterpreterHandler *ih, bool forceSourceOutput, AAPass *a
   if(aa != nullptr) {
     /* run pointer analysis */
     klee_message("Runnining pointer analysis...");
-    PassManager passManager;
-    passManager.add(aa);
-    passManager.run(*module);
+    aa->runOnModule(*module);
     klee_message("Finished pointer analysis");
 
   }

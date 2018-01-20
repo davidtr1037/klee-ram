@@ -20,3 +20,5 @@ install(TARGETS klee RUNTIME DESTINATION bin)
 
 # The KLEE binary depends on the runtimes
 add_dependencies(klee BuildKLEERuntimes)
+find_library(SVF_LIB Svf.so HINTS ${SVF_ROOT_DIR}/build1/lib)
+find_library(CUDD_LIB Cudd.so HINTS ${SVF_ROOT_DIR}/build1/lib/CUDD)
