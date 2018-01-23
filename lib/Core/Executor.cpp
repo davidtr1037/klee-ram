@@ -458,7 +458,9 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
   AAPass* aa = nullptr;
   if(PointerAnalysisMem) {
       aa = new AAPass();
+
       aa->setPAType(PointerAnalysis::Andersen_WPA);
+//      aa->setPAType(PointerAnalysis::FSSPARSE_WPA);
   }
 
   kmodule->manifest(interpreterHandler, StatsTracker::useStatistics(), aa);
@@ -3390,32 +3392,19 @@ void Executor::executeAlloc(ExecutionState &state,
                             bool isLocal,
                             KInstruction *target,
                             bool zeroMemory,
-<<<<<<< HEAD
                             const ObjectState *reallocFrom,
                             size_t allocationAlignment) {
-=======
-                            const ObjectState *reallocFrom) {
 
   if(aa != nullptr) {
-      int allocSite = -1;
-      for( auto & a : allocMap) {
-          KInstruction * kinst = a.first;
-          int num = a.second;
-          //errs() << aa->getPassName() << "\n" ;
-          AliasAnalysis::AliasResult aresult = aa->alias(kinst->inst, target->inst); 
-//          errs() << "Allias results " << aresult << "\n"; 
-          if(aresult) {
-            errs() << "Alias: " << kinst->printFileLine() << " to " << target->printFileLine() << "  with " << aresult << "\n";
-            allocSite = num;
-          }
-      }
-      if(allocSite == -1) {
-        allocMap[target] = allocCnt++;
-      }
+     errs() << "Alloc at  " << target->printFileLine() << "\n";
   
+    if(aa->isNotAllone(target->inst)) {
+        errs() << "Goes to SBRK!\n";
+        executeSbrk(state, target, size);
+        return;
+    }
   }
 
->>>>>>> b2c8357... First alias analysis
   size = toUnique(state, size);
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(size)) {
     const llvm::Value *allocSite = state.prevPC->inst;
@@ -3529,6 +3518,7 @@ void Executor::executeFree(ExecutionState &state,
                            ref<Expr> address,
                            KInstruction *target) {
   address = optimizer.optimizeExpr(address, true);
+
   StatePair zeroPointer = fork(state, Expr::createIsZero(address), true);
   if (zeroPointer.first) {
     if (target)
@@ -3541,6 +3531,9 @@ void Executor::executeFree(ExecutionState &state,
     for (Executor::ExactResolutionList::iterator it = rl.begin(), 
            ie = rl.end(); it != ie; ++it) {
       const MemoryObject *mo = it->first.first;
+      if(aa->isNotAllone(mo->allocSite)) {
+          return;
+      }
       if (mo->isLocal) {
         terminateStateOnError(*it->second, "free of alloca", Free, NULL,
                               getAddressInfo(*it->second, address));

@@ -46,9 +46,13 @@ public:
   void setPAType(PointerAnalysis::PTATY type) { this->type = type; }
 
   BVDataPTAImpl *getPTA() { return _pta; }
+  //void getPointsTo(const llvm::Value* V);
+  int getMaxGroupedObjects();
+  int isNotAllone(const llvm::Value* V);
 
 private:
   void runPointerAnalysis(llvm::Module &module, u32_t kind);
+  std::list<PointsTo> disjointObjects;
 
   PointerAnalysis::PTATY type;
   BVDataPTAImpl *_pta;
