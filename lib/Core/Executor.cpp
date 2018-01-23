@@ -3346,7 +3346,6 @@ ObjectState *Executor::bindObjectInState(ExecutionState &state,
   return os;
 }
 
-static bool firstSbrk=true;
 void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr> increment_param, int poolNum) {
   ConstantExpr *ce_increment = dyn_cast<ConstantExpr>(increment_param);
 
@@ -3373,28 +3372,10 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   if(!mo) {
       return bindLocal(target, state, ConstantExpr::create(-1, Expr::Int64));
   }
- // if(state.addressSpace.firstSbrk[poolNum]) { //first call to sbrk
- //   state.addressSpace.firstSbrk[poolNum] = false;
- //   mo->size += inc;
- //   printf("state %p size %d, inc %d\n", &state, mo->size, inc);
- //   ObjectState* os;
- //   printf("alloc new state %d\n", mo->size);
- //   os = new ObjectState(mo);
- //   os->initializeToZero();
- //   state.addressSpace.sbrkOses[poolNum] = os;
- //   printf("rerealloc state\n");
- //   state.addressSpace.bindObject(mo,os);
- //   printf("bind\n");
- //   printf("In state %p current os %p, size %d, by %d\n", &state, state.addressSpace.sbrkOses[poolNum], state.addressSpace.sbrkOses[poolNum]->size, inc);
- //  
- // } else { //subseqent calls
-//    state.addressSpace.unbindObject(mo);
-    mo->size += increment;
-    ObjectState* prev_os = state.addressSpace.sbrkOses[poolNum];
-    prev_os->realloc(mo->size);
- //   state.addressSpace.sbrkOses[poolNum] = new ObjectState(*state.addressSpace.sbrkOses[poolNum]);
-    //state.addressSpace.bindObject(mo,state.addressSpace.sbrkOses[poolNum]);
-    printf("done %p to %p\n", prev_os, state.addressSpace.sbrkOses[poolNum]);
+  mo->size += increment;
+  ObjectState* prev_os = state.addressSpace.sbrkOses[poolNum];
+  prev_os->realloc(mo->size);
+  printf("done %p to %p\n", prev_os, state.addressSpace.sbrkOses[poolNum]);
   
   bindLocal(target, state, ConstantExpr::create(mo->address + prev_size, Context::get().getPointerWidth()));
 }

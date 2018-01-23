@@ -78,12 +78,6 @@ namespace klee {
             MemoryObject* mo,* sb = b.sbrkMos[i];
             ObjectState* os, *old_os = b.sbrkOses[i];
             mo = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
-            printf("old_os %p cm %p\n", old_os, old_os->concreteMask);
-            printf("old_os %p fm %p\n", old_os, old_os->flushMask);
-            if(old_os->concreteMask )
-            printf("concrete mask: %p\n", old_os->concreteMask->bits);
-            if(old_os->flushMask)
-            printf("flush mask: %p\n", old_os->flushMask->bits);
             os = new ObjectState(*old_os);
             os->object = mo;
             sbrkMos[i] = mo;

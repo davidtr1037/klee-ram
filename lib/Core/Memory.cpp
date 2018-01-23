@@ -193,6 +193,9 @@ void ObjectState::realloc(unsigned int newSize) {
               delete concreteMask;
               concreteMask = cm;
           }
+          if(flushMask != nullptr) {
+              printf("Potential issue!\n");
+          }
 
           delete[] concreteStore;
           concreteStore = store;
