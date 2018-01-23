@@ -432,7 +432,7 @@ void SpecialFunctionHandler::handleMalloc(ExecutionState &state,
   // XXX should type check args
   assert(arguments.size()==1 && "invalid number of arguments to malloc");
   if(SbrkMalloc) {
-    executor.executeSbrk(state, target, arguments[0]);
+    executor.executeSbrk(state, target, arguments[0],0);
   } else
     executor.executeAlloc(state, arguments[0], false, target);
 }
@@ -685,7 +685,7 @@ void SpecialFunctionHandler::handleCalloc(ExecutionState &state,
   ref<Expr> size = MulExpr::create(arguments[0],
                                    arguments[1]);
   if(SbrkMalloc) {
-    executor.executeSbrk(state, target, size);
+    executor.executeSbrk(state, target, size,0);
   } else
   executor.executeAlloc(state, size, false, target, true);
 }
@@ -699,7 +699,7 @@ void SpecialFunctionHandler::handleRealloc(ExecutionState &state,
   ref<Expr> address = arguments[0];
   ref<Expr> size = arguments[1];
   if(SbrkMalloc) {
-    executor.executeSbrk(state, target, size);
+    executor.executeSbrk(state, target, size,0);
     return;
   }
 
@@ -748,7 +748,7 @@ void SpecialFunctionHandler::handleSbrk(ExecutionState &state,
   assert(arguments.size()==1 &&
          "invalid number of arguments to free");
 //  llvm::outs() << "in handle Sbrk " << arguments[0] << "\n";
-  executor.executeSbrk(state, target, arguments[0]);
+  executor.executeSbrk(state, target, arguments[0],0);
 
 }
 

@@ -2827,6 +2827,19 @@ void Executor::doDumpStates() {
 
 void Executor::run(ExecutionState &initialState) {
   bindModuleConstants();
+  
+  for(int poolNum = 0; poolNum < aa->getMaxGroupedObjects(); poolNum++) {
+    void * heapSpace = mmap(NULL, 1024*1024*10, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
+    if(heapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
+    int sbrkHeapSize = 0;
+    MemoryObject * sbrkMo;
+
+    sbrkMo = new MemoryObject((uint64_t)heapSpace, sbrkHeapSize, false, true, false, NULL, NULL);
+    sbrkMo->name = "sbrkMo";
+    initialState.addressSpace.sbrkMos.push_back(sbrkMo);
+    initialState.addressSpace.sbrkOses.push_back(new ObjectState(sbrkMo));
+    initialState.addressSpace.firstSbrk.push_back(true);
+  }
 
   // Delay init till now so that ticks don't accrue during
   // optimization and such.
@@ -3328,7 +3341,7 @@ ObjectState *Executor::bindObjectInState(ExecutionState &state,
 }
 
 static bool firstSbrk=true;
-void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr> increment) {
+void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr> increment, int poolNum) {
   ConstantExpr *ce_increment = dyn_cast<ConstantExpr>(increment);
 
   if(!ce_increment) {
@@ -3337,7 +3350,7 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
     return ;
   }
 
-  MemoryObject *mo = state.addressSpace.sbrkMo;
+  MemoryObject *mo = state.addressSpace.sbrkMos[poolNum];
   mo->parent = memory;
   uint64_t inc = ce_increment->getZExtValue();
   if(inc == 0) {
@@ -3353,33 +3366,34 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   }
   mo->allocSite = state.prevPC->inst;
   unsigned prev_size = mo->size;
-  printf("In state %p current os %p, size %d, by %d\n", &state, state.addressSpace.sbrkOs, state.addressSpace.sbrkOs->size, inc);
+  printf("In state %p, poolNum %d, current os %p, size %d, by %d\n", &state, poolNum, 
+    state.addressSpace.sbrkOses[poolNum], state.addressSpace.sbrkOses[poolNum]->size, inc);
   if(!mo) {
       bindLocal(target, state, ConstantExpr::create(-1, Expr::Int64));
       return ;
   }
-  if(firstSbrk) { //first call to sbrk
-    firstSbrk = false;
+  if(state.addressSpace.firstSbrk[poolNum]) { //first call to sbrk
+    state.addressSpace.firstSbrk[poolNum] = false;
     mo->size += inc;
     printf("state %p size %d, inc %d\n", &state, mo->size, inc);
     ObjectState* os;
     printf("alloc new state %d\n", mo->size);
     os = new ObjectState(mo);
     os->initializeToZero();
-    state.addressSpace.sbrkOs = os;
+    state.addressSpace.sbrkOses[poolNum] = os;
     printf("rerealloc state\n");
     state.addressSpace.bindObject(mo,os);
     printf("bind\n");
-    printf("In state %p current os %p, size %d, by %d\n", &state, state.addressSpace.sbrkOs, state.addressSpace.sbrkOs->size, inc);
+    printf("In state %p current os %p, size %d, by %d\n", &state, state.addressSpace.sbrkOses[poolNum], state.addressSpace.sbrkOses[poolNum]->size, inc);
    
   } else { //subseqent calls
 //    state.addressSpace.unbindObject(mo);
     mo->size += inc;
-    ObjectState* prev_os = state.addressSpace.sbrkOs;
-    state.addressSpace.sbrkOs->realloc(mo->size);
-    state.addressSpace.sbrkOs = new ObjectState(*state.addressSpace.sbrkOs);
-    state.addressSpace.bindObject(mo,state.addressSpace.sbrkOs);
-    printf("done %p to %p\n", prev_os, state.addressSpace.sbrkOs);
+    ObjectState* prev_os = state.addressSpace.sbrkOses[poolNum];
+    state.addressSpace.sbrkOses[poolNum]->realloc(mo->size);
+    state.addressSpace.sbrkOses[poolNum] = new ObjectState(*state.addressSpace.sbrkOses[poolNum]);
+    state.addressSpace.bindObject(mo,state.addressSpace.sbrkOses[poolNum]);
+    printf("done %p to %p\n", prev_os, state.addressSpace.sbrkOses[poolNum]);
   }
   
   bindLocal(target, state, ConstantExpr::create(mo->address + prev_size, Context::get().getPointerWidth()));
@@ -3398,9 +3412,9 @@ void Executor::executeAlloc(ExecutionState &state,
   if(aa != nullptr) {
      errs() << "Alloc at  " << target->printFileLine() << "\n";
   
-    if(aa->isNotAllone(target->inst)) {
+    if(int pn = aa->isNotAllone(target->inst)) {
         errs() << "Goes to SBRK!\n";
-        executeSbrk(state, target, size);
+        executeSbrk(state, target, size, pn - 1);
         return;
     }
   }

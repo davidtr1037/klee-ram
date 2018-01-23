@@ -66,22 +66,23 @@ namespace klee {
     ///
     /// \invariant forall o in objects, o->copyOnWriteOwner <= cowKey
     MemoryMap objects;
-    MemoryObject *sbrkMo;
-    ObjectState *sbrkOs;
+    std::vector<MemoryObject*> sbrkMos;
+    std::vector<ObjectState*> sbrkOses;
+    std::vector<bool> firstSbrk;
+    
   public:
     AddressSpace() : cowKey(1) {
-          void * sbrkHeapSpace = mmap(NULL, 1024*1024*80, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
-          if(sbrkHeapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
-          int sbrkHeapSize = 0;
-          sbrkMo = new MemoryObject((uint64_t)sbrkHeapSpace, sbrkHeapSize, false, true, false, NULL, NULL);
-          sbrkMo->name = "sbrkMo";
-          sbrkOs = new ObjectState(sbrkMo);
     }
     AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), objects(b.objects) { 
-        MemoryObject* sb = b.sbrkMo;    
-        sbrkMo = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
-        sbrkMo->name = "sbrkMoCopya";
-        sbrkOs = new ObjectState(*b.sbrkOs);
+        sbrkMos = b.sbrkMos;
+        sbrkOses = b.sbrkOses;
+        for(auto& sb : sbrkMos)  {
+            sb = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
+            sb->name = "sbrkMosCpyies";
+        }
+        for(auto& sbos : sbrkOses)
+            sbos = new ObjectState(*sbos);
+        firstSbrk = b.firstSbrk;
     }
     ~AddressSpace() {}
 
