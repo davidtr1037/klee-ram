@@ -13,6 +13,7 @@
 #include "Context.h"
 #include "TimingSolver.h"
 #include "klee/Expr.h"
+#include "klee/util/BitArray.h"
 
 #include "llvm/ADT/StringExtras.h"
 
@@ -25,7 +26,7 @@ namespace llvm {
 
 namespace klee {
 
-class BitArray;
+//class BitArray;
 class MemoryManager;
 class Solver;
 class ArrayCache;

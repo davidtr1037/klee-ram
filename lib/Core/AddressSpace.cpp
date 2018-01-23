@@ -44,6 +44,11 @@ ObjectState *AddressSpace::getWriteable(const MemoryObject *mo,
   } else {
     ObjectState *n = new ObjectState(*os);
     n->copyOnWriteOwner = cowKey;
+    for(int i = 0; i < sbrkMos.size(); i++) {
+        if(sbrkMos[i] == mo) {
+            sbrkOses[i] = n;
+        }
+    }
     objects = objects.replace(std::make_pair(mo, n));
     return n;    
   }
@@ -88,7 +93,7 @@ bool AddressSpace::mergeResolution(ResolutionList &rl, MemoryManager* memoryM) {
    for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
         MemoryObject *mo = const_cast<MemoryObject*>(i->first);
         ObjectState *os = const_cast<ObjectState*>(i->second);
-        for(int i = 0; i < os->size; i++) {
+        for(unsigned i = 0; i < os->size; i++) {
           newBigOs->write((mo->address - newBigMo->address) + i, os->read8(i));
 
         }

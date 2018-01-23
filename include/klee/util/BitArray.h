@@ -17,17 +17,20 @@ namespace klee {
   // BitArrays
 class BitArray {
 private:
-  uint32_t *bits;
   
 protected:
   static uint32_t length(unsigned size) { return (size+31)/32; }
 
 public:
+  uint32_t *bits;
   BitArray(unsigned size, bool value = false) : bits(new uint32_t[length(size)]) {
     memset(bits, value?0xFF:0, sizeof(*bits)*length(size));
   }
   BitArray(const BitArray &b, unsigned size) : bits(new uint32_t[length(size)]) {
     memcpy(bits, b.bits, sizeof(*bits)*length(size));
+  }
+  BitArray(const BitArray &b, unsigned size, unsigned copySize) : bits(new uint32_t[length(size)]) {
+    memcpy(bits, b.bits, sizeof(*bits)*length(copySize));
   }
   ~BitArray() { delete[] bits; }
 

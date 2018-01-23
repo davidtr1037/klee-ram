@@ -455,7 +455,7 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
   kmodule->optimiseAndPrepare(opts, preservedFunctions);
 
   // 4.) Manifest the module
-  AAPass* aa = nullptr;
+  aa = nullptr;
   if(PointerAnalysisMem) {
       aa = new AAPass();
 
@@ -2828,7 +2828,11 @@ void Executor::doDumpStates() {
 void Executor::run(ExecutionState &initialState) {
   bindModuleConstants();
   
-  for(int poolNum = 0; poolNum < aa->getMaxGroupedObjects(); poolNum++) {
+  int maxGroupObj = 1;
+  if(aa != nullptr) {
+    maxGroupObj = aa->getMaxGroupedObjects();
+  }
+  for(int poolNum = 0; poolNum < maxGroupObj; poolNum++) {
     void * heapSpace = mmap(NULL, 1024*1024*10, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
     if(heapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
     int sbrkHeapSize = 0;
@@ -2836,9 +2840,11 @@ void Executor::run(ExecutionState &initialState) {
 
     sbrkMo = new MemoryObject((uint64_t)heapSpace, sbrkHeapSize, false, true, false, NULL, NULL);
     sbrkMo->name = "sbrkMo";
+    ObjectState* os = new ObjectState(sbrkMo);
     initialState.addressSpace.sbrkMos.push_back(sbrkMo);
-    initialState.addressSpace.sbrkOses.push_back(new ObjectState(sbrkMo));
+    initialState.addressSpace.sbrkOses.push_back(os);
     initialState.addressSpace.firstSbrk.push_back(true);
+    initialState.addressSpace.bindObject(sbrkMo, os);
   }
 
   // Delay init till now so that ticks don't accrue during
@@ -3341,60 +3347,54 @@ ObjectState *Executor::bindObjectInState(ExecutionState &state,
 }
 
 static bool firstSbrk=true;
-void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr> increment, int poolNum) {
-  ConstantExpr *ce_increment = dyn_cast<ConstantExpr>(increment);
+void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr> increment_param, int poolNum) {
+  ConstantExpr *ce_increment = dyn_cast<ConstantExpr>(increment_param);
 
   if(!ce_increment) {
-    terminateStateOnError(state, "Symbolic arguments to sbrk are unsupported",
+    return terminateStateOnError(state, "Symbolic arguments to sbrk are unsupported",
                                   Model, NULL, "Unsupported sym arguments");
-    return ;
   }
 
   MemoryObject *mo = state.addressSpace.sbrkMos[poolNum];
   mo->parent = memory;
-  uint64_t inc = ce_increment->getZExtValue();
-  if(inc == 0) {
-    bindLocal(target, state, ConstantExpr::create(mo->address + mo->size, Context::get().getPointerWidth()));
-    return;
-  }
-  if(inc > 20000) {
-    errs() << "inc is: " << inc << "\n";
-    terminateStateOnError(state, "Negative or big arguments to sbrk are not supported",
-                                  Model, NULL, "Unsupported sym arguments");
-    return ;
-  
-  }
   mo->allocSite = state.prevPC->inst;
+  uint64_t increment = ce_increment->getZExtValue();
+  if(increment == 0) {
+    return bindLocal(target, state, ConstantExpr::create(mo->address + mo->size, Context::get().getPointerWidth()));
+  }
+  if(increment > 20000) {
+    errs() << "inc is: " << increment << "\n";
+    return terminateStateOnError(state, "Negative or big arguments to sbrk are not supported",
+                                  Model, NULL, "Unsupported sym arguments");
+  }
   unsigned prev_size = mo->size;
   printf("In state %p, poolNum %d, current os %p, size %d, by %d\n", &state, poolNum, 
-    state.addressSpace.sbrkOses[poolNum], state.addressSpace.sbrkOses[poolNum]->size, inc);
+    state.addressSpace.sbrkOses[poolNum], state.addressSpace.sbrkOses[poolNum]->size, increment);
   if(!mo) {
-      bindLocal(target, state, ConstantExpr::create(-1, Expr::Int64));
-      return ;
+      return bindLocal(target, state, ConstantExpr::create(-1, Expr::Int64));
   }
-  if(state.addressSpace.firstSbrk[poolNum]) { //first call to sbrk
-    state.addressSpace.firstSbrk[poolNum] = false;
-    mo->size += inc;
-    printf("state %p size %d, inc %d\n", &state, mo->size, inc);
-    ObjectState* os;
-    printf("alloc new state %d\n", mo->size);
-    os = new ObjectState(mo);
-    os->initializeToZero();
-    state.addressSpace.sbrkOses[poolNum] = os;
-    printf("rerealloc state\n");
-    state.addressSpace.bindObject(mo,os);
-    printf("bind\n");
-    printf("In state %p current os %p, size %d, by %d\n", &state, state.addressSpace.sbrkOses[poolNum], state.addressSpace.sbrkOses[poolNum]->size, inc);
-   
-  } else { //subseqent calls
+ // if(state.addressSpace.firstSbrk[poolNum]) { //first call to sbrk
+ //   state.addressSpace.firstSbrk[poolNum] = false;
+ //   mo->size += inc;
+ //   printf("state %p size %d, inc %d\n", &state, mo->size, inc);
+ //   ObjectState* os;
+ //   printf("alloc new state %d\n", mo->size);
+ //   os = new ObjectState(mo);
+ //   os->initializeToZero();
+ //   state.addressSpace.sbrkOses[poolNum] = os;
+ //   printf("rerealloc state\n");
+ //   state.addressSpace.bindObject(mo,os);
+ //   printf("bind\n");
+ //   printf("In state %p current os %p, size %d, by %d\n", &state, state.addressSpace.sbrkOses[poolNum], state.addressSpace.sbrkOses[poolNum]->size, inc);
+ //  
+ // } else { //subseqent calls
 //    state.addressSpace.unbindObject(mo);
-    mo->size += inc;
+    mo->size += increment;
     ObjectState* prev_os = state.addressSpace.sbrkOses[poolNum];
-    state.addressSpace.sbrkOses[poolNum]->realloc(mo->size);
-    state.addressSpace.sbrkOses[poolNum] = new ObjectState(*state.addressSpace.sbrkOses[poolNum]);
-    state.addressSpace.bindObject(mo,state.addressSpace.sbrkOses[poolNum]);
+    prev_os->realloc(mo->size);
+ //   state.addressSpace.sbrkOses[poolNum] = new ObjectState(*state.addressSpace.sbrkOses[poolNum]);
+    //state.addressSpace.bindObject(mo,state.addressSpace.sbrkOses[poolNum]);
     printf("done %p to %p\n", prev_os, state.addressSpace.sbrkOses[poolNum]);
-  }
   
   bindLocal(target, state, ConstantExpr::create(mo->address + prev_size, Context::get().getPointerWidth()));
 }

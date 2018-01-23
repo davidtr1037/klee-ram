@@ -73,15 +73,23 @@ namespace klee {
   public:
     AddressSpace() : cowKey(1) {
     }
-    AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), objects(b.objects) { 
-        sbrkMos = b.sbrkMos;
-        sbrkOses = b.sbrkOses;
-        for(auto& sb : sbrkMos)  {
-            sb = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
-            sb->name = "sbrkMosCpyies";
+    AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), objects(b.objects), sbrkMos(b.sbrkMos.size()), sbrkOses(b.sbrkOses.size()) { 
+        for(int i = 0; i < sbrkMos.size(); i++) {
+            MemoryObject* mo,* sb = b.sbrkMos[i];
+            ObjectState* os, *old_os = b.sbrkOses[i];
+            mo = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
+            printf("old_os %p cm %p\n", old_os, old_os->concreteMask);
+            printf("old_os %p fm %p\n", old_os, old_os->flushMask);
+            if(old_os->concreteMask )
+            printf("concrete mask: %p\n", old_os->concreteMask->bits);
+            if(old_os->flushMask)
+            printf("flush mask: %p\n", old_os->flushMask->bits);
+            os = new ObjectState(*old_os);
+            os->object = mo;
+            sbrkMos[i] = mo;
+            sbrkOses[i] = os;
+
         }
-        for(auto& sbos : sbrkOses)
-            sbos = new ObjectState(*sbos);
         firstSbrk = b.firstSbrk;
     }
     ~AddressSpace() {}

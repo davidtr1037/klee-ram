@@ -182,9 +182,19 @@ void ObjectState::realloc(unsigned int newSize) {
           uint8_t *store = new uint8_t[newSize];
           
           memcpy(store, concreteStore, std::min(size,newSize));
-          printf("Os %p Realloc size %d, newSize %d from %p to %p\n", this, size, newSize, concreteStore, store);
+          printf("Os %p Realloc size %d, newSize %d from %p to %p, concreteMaskL %p\n", this, size, newSize, concreteStore, store, concreteMask);
 //leads to double free for some reason
 //          delete[] concreteStore;
+          if(concreteMask != nullptr) {
+              BitArray *cm;
+              printf("Updating concrete mask old size: %d, new size %d, bits %p\n", size, newSize, concreteMask);
+              printf("Bits %p\n", concreteMask->bits);
+              cm = new BitArray(*concreteMask, newSize,std::min(size,newSize));
+              delete concreteMask;
+              concreteMask = cm;
+          }
+
+          delete[] concreteStore;
           concreteStore = store;
           size = newSize;
 }
@@ -307,7 +317,10 @@ void ObjectState::fastRangeCheckOffset(ref<Expr> offset,
 
 void ObjectState::flushRangeForRead(unsigned rangeBase, 
                                     unsigned rangeSize) const {
-  if (!flushMask) flushMask = new BitArray(size, true);
+  if (!flushMask) {
+    flushMask = new BitArray(size, true);
+    printf("%p made flushMask %p, of size:%d", this, flushMask, size);
+  }
  
   for (unsigned offset=rangeBase; offset<rangeBase+rangeSize; offset++) {
     if (!isByteFlushed(offset)) {
@@ -327,7 +340,10 @@ void ObjectState::flushRangeForRead(unsigned rangeBase,
 
 void ObjectState::flushRangeForWrite(unsigned rangeBase, 
                                      unsigned rangeSize) {
-  if (!flushMask) flushMask = new BitArray(size, true);
+  if (!flushMask) {
+    flushMask = new BitArray(size, true);
+    printf("%p made flushMask %p, of size:%d", this, flushMask, size);
+  }
 
   for (unsigned offset=rangeBase; offset<rangeBase+rangeSize; offset++) {
     if (!isByteFlushed(offset)) {
@@ -373,8 +389,10 @@ void ObjectState::markByteConcrete(unsigned offset) {
 }
 
 void ObjectState::markByteSymbolic(unsigned offset) {
-  if (!concreteMask)
+  if (!concreteMask) {
     concreteMask = new BitArray(size, true);
+    printf("%p made cm %p\n", this, concreteMask);
+  }
   concreteMask->unset(offset);
 }
 
@@ -386,6 +404,7 @@ void ObjectState::markByteUnflushed(unsigned offset) {
 void ObjectState::markByteFlushed(unsigned offset) {
   if (!flushMask) {
     flushMask = new BitArray(size, false);
+    printf("%p made flushMask %p, of size:%d", this, flushMask, size);
   } else {
     flushMask->unset(offset);
   }
