@@ -44,11 +44,6 @@ ObjectState *AddressSpace::getWriteable(const MemoryObject *mo,
   } else {
     ObjectState *n = new ObjectState(*os);
     n->copyOnWriteOwner = cowKey;
-    for(int i = 0; i < sbrkMos.size(); i++) {
-        if(sbrkMos[i] == mo) {
-            sbrkOses[i] = n;
-        }
-    }
     objects = objects.replace(std::make_pair(mo, n));
     return n;    
   }

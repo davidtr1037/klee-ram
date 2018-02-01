@@ -512,6 +512,12 @@ Array::Array(const std::string &_name, uint64_t _size,
 Array::~Array() {
 }
 
+void Array::resize(unsigned newSize){
+   size = newSize;
+   constantValues.resize(newSize);
+}
+
+
 unsigned Array::computeHash() {
   unsigned res = 0;
   for (unsigned i = 0, e = name.size(); i != e; ++i)

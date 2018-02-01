@@ -67,24 +67,22 @@ namespace klee {
     /// \invariant forall o in objects, o->copyOnWriteOwner <= cowKey
     MemoryMap objects;
     std::vector<MemoryObject*> sbrkMos;
-    std::vector<ObjectState*> sbrkOses;
-    std::vector<bool> firstSbrk;
+    //std::vector<ObjectState*> sbrkOses;
     
   public:
     AddressSpace() : cowKey(1) {
     }
-    AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), objects(b.objects), sbrkMos(b.sbrkMos.size()), sbrkOses(b.sbrkOses.size()) { 
+    AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), objects(b.objects), sbrkMos(b.sbrkMos.size()) { 
         for(int i = 0; i < sbrkMos.size(); i++) {
             MemoryObject* mo,* sb = b.sbrkMos[i];
-            ObjectState* os, *old_os = b.sbrkOses[i];
+//            ObjectState* os, *old_os = b.sbrkOses[i];
             mo = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
-            os = new ObjectState(*old_os);
-            os->object = mo;
+//            os = new ObjectState(*old_os);
+//            os->object = mo;
             sbrkMos[i] = mo;
-            sbrkOses[i] = os;
+//            sbrkOses[i] = os;
 
         }
-        firstSbrk = b.firstSbrk;
     }
     ~AddressSpace() {}
 

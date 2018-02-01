@@ -489,6 +489,7 @@ Executor::~Executor() {
   delete specialFunctionHandler;
   delete statsTracker;
   delete solver;
+  if(aa != nullptr) delete aa;
   while(!timers.empty()) {
     delete timers.back();
     timers.pop_back();
@@ -2842,8 +2843,7 @@ void Executor::run(ExecutionState &initialState) {
     sbrkMo->name = "sbrkMo";
     ObjectState* os = new ObjectState(sbrkMo);
     initialState.addressSpace.sbrkMos.push_back(sbrkMo);
-    initialState.addressSpace.sbrkOses.push_back(os);
-    initialState.addressSpace.firstSbrk.push_back(true);
+    //initialState.addressSpace.sbrkOses.push_back(os);
     initialState.addressSpace.bindObject(sbrkMo, os);
   }
 
@@ -3355,8 +3355,6 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   }
 
   MemoryObject *mo = state.addressSpace.sbrkMos[poolNum];
-  mo->parent = memory;
-  mo->allocSite = state.prevPC->inst;
   uint64_t increment = ce_increment->getZExtValue();
   if(increment == 0) {
     return bindLocal(target, state, ConstantExpr::create(mo->address + mo->size, Context::get().getPointerWidth()));
@@ -3367,15 +3365,19 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
                                   Model, NULL, "Unsupported sym arguments");
   }
   unsigned prev_size = mo->size;
-  printf("In state %p, poolNum %d, current os %p, size %d, by %d\n", &state, poolNum, 
-    state.addressSpace.sbrkOses[poolNum], state.addressSpace.sbrkOses[poolNum]->size, increment);
-  if(!mo) {
+  printf("In state %p, poolNum %d, by %d\n", &state, poolNum, increment);
+  if(mo == nullptr) {
+      klee_warning("Null memory object");
       return bindLocal(target, state, ConstantExpr::create(-1, Expr::Int64));
   }
+  mo->parent = memory;
+  mo->allocSite = state.prevPC->inst;
+  const ObjectState* ros = state.addressSpace.findObject(mo);
+  ObjectState* prev_os = state.addressSpace.getWriteable(mo,ros);
+  printf("Got os %p of size %d, by %d\n", prev_os, prev_os->size, increment);
   mo->size += increment;
-  ObjectState* prev_os = state.addressSpace.sbrkOses[poolNum];
   prev_os->realloc(mo->size);
-  printf("done %p to %p\n", prev_os, state.addressSpace.sbrkOses[poolNum]);
+  printf("done %p\n", prev_os);
   
   bindLocal(target, state, ConstantExpr::create(mo->address + prev_size, Context::get().getPointerWidth()));
 }

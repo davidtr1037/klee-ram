@@ -484,7 +484,7 @@ public:
   const std::string name;
 
   // FIXME: Not 64-bit clean.
-  const unsigned size;
+  unsigned size;
 
   /// Domain is how many bits can be used to access the array [32 bits]
   /// Range is the size (in bits) of the number stored there (array of bytes -> 8)
@@ -493,7 +493,8 @@ public:
   /// constantValues - The constant initial values for this array, or empty for
   /// a symbolic array. If non-empty, this size of this array is equivalent to
   /// the array size.
-  const std::vector<ref<ConstantExpr> > constantValues;
+  std::vector<ref<ConstantExpr> > constantValues;
+  void resize(unsigned newSize) ;
 
 private:
   unsigned hashValue;
