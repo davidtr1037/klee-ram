@@ -460,6 +460,7 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
       aa = new AAPass();
 
       aa->setPAType(PointerAnalysis::Andersen_WPA);
+      aa->setPAType(PointerAnalysis::AndersenWaveDiff_WPA);
 //      aa->setPAType(PointerAnalysis::FSSPARSE_WPA);
   }
 
@@ -3359,7 +3360,7 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   if(increment == 0) {
     return bindLocal(target, state, ConstantExpr::create(mo->address + mo->size, Context::get().getPointerWidth()));
   }
-  if(increment > 20000) {
+  if(increment > 200000) {
     errs() << "inc is: " << increment << "\n";
     return terminateStateOnError(state, "Negative or big arguments to sbrk are not supported",
                                   Model, NULL, "Unsupported sym arguments");
