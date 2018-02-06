@@ -43,6 +43,8 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
         break;
     }
 
+
+    _pta->quiet = true;
     _pta->analyze(module);
 
     PAG* pag = _pta->getPAG();
@@ -65,7 +67,7 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
             ptsToOrIsPointedTo.set(nodeId);
             auto foundElem = std::find_if(disjointObjects.begin(), disjointObjects.end(),
               [&ptsToOrIsPointedTo](const PointsTo& e)  
-                  {return e.contains(ptsToOrIsPointedTo) || ptsToOrIsPointedTo.contains(e);});
+                  {return e.intersects(ptsToOrIsPointedTo);});
             if( foundElem == disjointObjects.end()) {
                 disjointObjects.push_front(ptsToOrIsPointedTo);
             } else {
@@ -75,8 +77,12 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
         }
     }
 
-    for(auto& dob : disjointObjects)
-    llvm::dump(dob, errs());
+    for(auto& dob : disjointObjects) {
+      llvm::dump(dob, errs());
+      for(auto nid : dob) {
+        pag->getObject(nid)->getRefVal()->dump();
+      }
+    }
 
 }
 
@@ -84,6 +90,7 @@ int AAPass::getMaxGroupedObjects() {
     return disjointObjects.size();
 }
 int AAPass::isNotAllone(const llvm::Value* V) {
+    if(V == nullptr) return 0;
     PAG* pag = _pta->getPAG();
     NodeID node = pag->getValueNode(V);
     PointsTo& ptsTo = _pta->getPts(node);

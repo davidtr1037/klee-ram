@@ -343,6 +343,10 @@ private:
   void executeMakeSymbolic(ExecutionState &state, const MemoryObject *mo,
                            const std::string &name);
 
+  
+  void executePartialMakeSymbolic(ExecutionState &state, const MemoryObject *mo,
+                           const std::string &name, ref<Expr> address, ref<Expr> size);
+
   /// Create a new state where each input condition has been added as
   /// a constraint and return the results. The input state is included
   /// as one of the results. Note that the output vector may included

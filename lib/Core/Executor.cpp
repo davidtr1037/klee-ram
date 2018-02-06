@@ -328,7 +328,7 @@ cl::opt<bool>
   cl::opt<bool>
   PointerAnalysisMem("pts",
             cl::desc("Use pointer analysis"),
-            cl::init(false));
+            cl::init(true));
 }
 
 
@@ -3353,12 +3353,16 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   if(!ce_increment) {
     return terminateStateOnError(state, "Symbolic arguments to sbrk are unsupported",
                                   Model, NULL, "Unsupported sym arguments");
+   // ref<ConstantExpr> example;
+   // bool success = solver->getValue(state, increment_param, example);
+   // assert(success && "FIXME: Unhandled solver failure");
+   // ce_increment = &(*example);
   }
 
   MemoryObject *mo = state.addressSpace.sbrkMos[poolNum];
   uint64_t increment = ce_increment->getZExtValue();
   if(increment == 0) {
-    return bindLocal(target, state, ConstantExpr::create(mo->address + mo->size, Context::get().getPointerWidth()));
+    return bindLocal(target, state, ConstantExpr::create(0, Context::get().getPointerWidth()));
   }
   if(increment > 200000) {
     errs() << "inc is: " << increment << "\n";
@@ -3366,7 +3370,7 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
                                   Model, NULL, "Unsupported sym arguments");
   }
   unsigned prev_size = mo->size;
-  printf("In state %p, poolNum %d, by %d\n", &state, poolNum, increment);
+  //printf("In state %p, poolNum %d, by %d\n", &state, poolNum, increment);
   if(mo == nullptr) {
       klee_warning("Null memory object");
       return bindLocal(target, state, ConstantExpr::create(-1, Expr::Int64));
@@ -3375,10 +3379,10 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   mo->allocSite = state.prevPC->inst;
   const ObjectState* ros = state.addressSpace.findObject(mo);
   ObjectState* prev_os = state.addressSpace.getWriteable(mo,ros);
-  printf("Got os %p of size %d, by %d\n", prev_os, prev_os->size, increment);
+ // printf("Got os %p of size %d, by %d\n", prev_os, prev_os->size, increment);
   mo->size += increment;
   prev_os->realloc(mo->size);
-  printf("done %p\n", prev_os);
+  //printf("done %p\n", prev_os);
   
   bindLocal(target, state, ConstantExpr::create(mo->address + prev_size, Context::get().getPointerWidth()));
 }
@@ -3394,8 +3398,7 @@ void Executor::executeAlloc(ExecutionState &state,
                             size_t allocationAlignment) {
 
   if(aa != nullptr) {
-     errs() << "Alloc at  " << target->printFileLine() << "\n";
-  
+    errs() << "Alloc at  " << target->printFileLine() << "\n";
     if(int pn = aa->isNotAllone(target->inst)) {
         errs() << "Goes to SBRK!\n";
         executeSbrk(state, target, size, pn - 1);
@@ -3529,7 +3532,8 @@ void Executor::executeFree(ExecutionState &state,
     for (Executor::ExactResolutionList::iterator it = rl.begin(), 
            ie = rl.end(); it != ie; ++it) {
       const MemoryObject *mo = it->first.first;
-      if(aa->isNotAllone(mo->allocSite)) {
+      if(aa && aa->isNotAllone(mo->allocSite)) {
+          klee_warning("Ignoring free");
           return;
       }
       if (mo->isLocal) {
@@ -3663,7 +3667,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   // XXX there is some query wasteage here. who cares?
   ExecutionState *unbound = &state;
   
-  outs() << "Multiple resolution! " << rl.size() << " in state " << &state << "\n";
+  errs() << "Multiple resolution! " << rl.size() << " in state " << &state << "\n";
   if(rl.size() > 1)  {
       klee_warning("Multiple addresses resolution ... forking!\n");
   }
@@ -3722,6 +3726,33 @@ void Executor::executeMemoryOperation(ExecutionState &state,
                             NULL, getAddressInfo(*unbound, address));
     }
   }
+}
+void Executor::executePartialMakeSymbolic(ExecutionState &state, const MemoryObject *mo,
+                           const std::string &name, ref<Expr> addressP, ref<Expr> sizeP) {
+    if(replayKTest) klee_error("Unhandled replayKTest");
+    assert(isa<ConstantExpr>(sizeP));
+    assert(isa<ConstantExpr>(addressP));
+    unsigned address = dyn_cast<ConstantExpr>(addressP)->getZExtValue();
+    unsigned size = dyn_cast<ConstantExpr>(sizeP)->getZExtValue();
+    unsigned address_obj_offset = address - mo->address;
+
+    const Array* a = state.getSymbolic(mo);
+    if(a != nullptr) {
+      if(a->size == mo->size) {
+          klee_error("TODO: mark offsets as symbolic");
+      } else {
+          klee_error("TODO: resize arrays");
+      }
+    }
+    const ObjectState* prevOs = state.addressSpace.findObject(mo);
+    ObjectState *prevOsCpy = new ObjectState(*prevOs);
+    executeMakeSymbolic(state,mo, name);
+    ObjectState* newOs = state.addressSpace.getWriteable(mo, state.addressSpace.findObject(mo));
+    assert(prevOs != newOs && "Object state doesn't change with mk sym");
+    for(unsigned i = 0; i < mo->size; i++) {
+        if(i < address_obj_offset || i >= address_obj_offset + size)
+          newOs->write(i, prevOs->read8(i));
+    }
 }
 
 void Executor::executeMakeSymbolic(ExecutionState &state, 

@@ -298,6 +298,13 @@ void KModule::manifest(InterpreterHandler *ih, bool forceSourceOutput, AAPass *a
     *os << *module;
   }
 
+  if(aa != nullptr) {
+    /* run pointer analysis */
+    klee_message("Runnining pointer analysis...");
+    aa->runOnModule(*module);
+    klee_message("Finished pointer analysis");
+  }
+
   if (OutputModule) {
     std::unique_ptr<llvm::raw_fd_ostream> f(ih->openOutputFile("final.bc"));
 #if LLVM_VERSION_CODE >= LLVM_VERSION(7, 0)
@@ -307,13 +314,7 @@ void KModule::manifest(InterpreterHandler *ih, bool forceSourceOutput, AAPass *a
 #endif
   }
   
-  if(aa != nullptr) {
-    /* run pointer analysis */
-    klee_message("Runnining pointer analysis...");
-    aa->runOnModule(*module);
-    klee_message("Finished pointer analysis");
-
-  }
+  
 
   /* Build shadow structures */
 

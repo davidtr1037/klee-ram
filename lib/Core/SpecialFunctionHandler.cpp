@@ -836,10 +836,16 @@ void SpecialFunctionHandler::handleMakeSymbolic(ExecutionState &state,
   for (Executor::ExactResolutionList::iterator it = rl.begin(), 
          ie = rl.end(); it != ie; ++it) {
     const MemoryObject *mo = it->first.first;
+    ExecutionState *s = it->second;
+    if(std::find(state.addressSpace.sbrkMos.begin(), state.addressSpace.sbrkMos.end(), mo) 
+          != state.addressSpace.sbrkMos.end()) {
+      klee_warning("Symbolizing sbrk mos");
+      executor.executePartialMakeSymbolic(*s, mo, name, arguments[0], arguments[1]);
+      return; 
+    }
     mo->setName(name);
     
     const ObjectState *old = it->first.second;
-    ExecutionState *s = it->second;
     
     if (old->readOnly) {
       executor.terminateStateOnError(*s, "cannot make readonly object symbolic",
@@ -851,7 +857,7 @@ void SpecialFunctionHandler::handleMakeSymbolic(ExecutionState &state,
     bool res;
     bool success __attribute__ ((unused)) =
       executor.solver->mustBeTrue(*s, 
-                                  UleExpr::create(ZExtExpr::create(arguments[1],
+                                  EqExpr::create(ZExtExpr::create(arguments[1],
                                                                   Context::get().getPointerWidth()),
                                                  mo->getSizeExpr()),
                                   res);

@@ -159,6 +159,13 @@ void ExecutionState::popFrame() {
   stack.pop_back();
 }
 
+const Array* ExecutionState::getSymbolic(const MemoryObject*mo) {
+    for(auto& pair : symbolics) {
+      if(pair.first == mo) return pair.second;
+    }
+    return nullptr;
+}
+
 void ExecutionState::addSymbolic(const MemoryObject *mo, const Array *array) { 
   mo->refCount++;
   symbolics.push_back(std::make_pair(mo, array));
