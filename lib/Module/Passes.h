@@ -158,6 +158,15 @@ private:
 llvm::FunctionPass *createScalarizerPass();
 #endif
 
+class RemoveReallocPass : public llvm::FunctionPass {
+    llvm::Function* mallocFun;
+    llvm::Function* memcpyFun;
+public:
+    static char ID;
+    RemoveReallocPass() : llvm::FunctionPass(ID) {}
+    bool doInitialization(llvm::Module &M);
+    bool runOnFunction(llvm::Function &F);
+};
 
 class OpenMergePass : public llvm::FunctionPass {
 private:

@@ -3358,9 +3358,11 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
    // assert(success && "FIXME: Unhandled solver failure");
    // ce_increment = &(*example);
   }
+  const uint64_t padding = 8;
 
   MemoryObject *mo = state.addressSpace.sbrkMos[poolNum];
-  uint64_t increment = ce_increment->getZExtValue();
+  uint64_t increment = ce_increment->getZExtValue() + padding;
+  errs() << " size: " << increment << "\n";
   if(increment == 0) {
     return bindLocal(target, state, ConstantExpr::create(0, Context::get().getPointerWidth()));
   }
@@ -3382,9 +3384,10 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
  // printf("Got os %p of size %d, by %d\n", prev_os, prev_os->size, increment);
   mo->size += increment;
   prev_os->realloc(mo->size);
+  prev_os->write64(prev_size, increment - padding);
   //printf("done %p\n", prev_os);
   
-  bindLocal(target, state, ConstantExpr::create(mo->address + prev_size, Context::get().getPointerWidth()));
+  bindLocal(target, state, ConstantExpr::create(mo->address + prev_size + padding, Context::get().getPointerWidth()));
 }
 
 std::unordered_map<KInstruction*, int>  allocMap;
@@ -3397,12 +3400,17 @@ void Executor::executeAlloc(ExecutionState &state,
                             const ObjectState *reallocFrom,
                             size_t allocationAlignment) {
 
-  if(aa != nullptr) {
+  if(aa != nullptr && reallocFrom == nullptr) {
     errs() << "Alloc at  " << target->printFileLine() << "\n";
     if(int pn = aa->isNotAllone(target->inst)) {
-        errs() << "Goes to SBRK!\n";
+        errs() << "Goes to SBRK! pool num: " << pn -1 << " ";
         executeSbrk(state, target, size, pn - 1);
         return;
+    }
+  } else {
+    if(int pn = aa->isNotAllone(target->inst)) {
+        errs() << "Realloc of sbrk object pn: " << pn << "  ...bailing\n";
+        return bindLocal(target, state, ConstantExpr::create(0, Context::get().getPointerWidth()));
     }
   }
 
@@ -3745,7 +3753,8 @@ void Executor::executePartialMakeSymbolic(ExecutionState &state, const MemoryObj
               state.addressSpace.getWriteable(mo, prevOs)->makeSymbolic(i);
           return;
       } else {
-          klee_error("TODO: resize arrays a.size: %u, mo.size %u, os.size: %u ", a->size, mo->size, prevOs->size);
+          klee_error(" arrays differ in size a.size: %u, mo.size %u, os.size: %u, should be handled by OS.realloc"
+                      , a->size, mo->size, prevOs->size);
       }
     }
     ObjectState *prevOsCpy = new ObjectState(*prevOs);

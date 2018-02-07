@@ -79,9 +79,9 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
 
     for(auto& dob : disjointObjects) {
       llvm::dump(dob, errs());
-      for(auto nid : dob) {
-        pag->getObject(nid)->getRefVal()->dump();
-      }
+     // for(auto nid : dob) {
+     //   pag->getObject(nid)->getRefVal()->dump();
+     // }
     }
 
 }
