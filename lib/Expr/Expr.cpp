@@ -513,8 +513,15 @@ Array::~Array() {
 }
 
 void Array::resize(unsigned newSize){
+   assert(size < newSize && "Resizing to smaller arrayis not supported");
+   if(isConstantArray()) {
+      constantValues.resize(newSize);
+      for(unsigned i = size; i < newSize; i++) {
+          constantValues[i] = ConstantExpr::create(0, Expr::Int8);
+      }
+      
+   }
    size = newSize;
-   constantValues.resize(newSize);
 }
 
 

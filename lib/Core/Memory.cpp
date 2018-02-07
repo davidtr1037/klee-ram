@@ -210,7 +210,8 @@ void ObjectState::realloc(unsigned int newSize) {
 
           }
           if(updates.root != nullptr) {
-            //const_cast<Array*>(updates.root)->resize(newSize);
+             printf("Updates.root size: %u, name %s\n", updates.root->size, updates.root->name.c_str());
+            const_cast<Array*>(updates.root)->resize(newSize);
           }
 
           delete[] concreteStore;
@@ -306,6 +307,11 @@ void ObjectState::makeSymbolic() {
   }
 }
 
+void ObjectState::makeSymbolic(unsigned i) {
+    markByteSymbolic(i);
+    setKnownSymbolic(i, 0);
+    markByteFlushed(i);
+}
 void ObjectState::initializeToZero() {
   makeConcrete();
   memset(concreteStore, 0, size);

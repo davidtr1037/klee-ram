@@ -3737,22 +3737,26 @@ void Executor::executePartialMakeSymbolic(ExecutionState &state, const MemoryObj
     unsigned address_obj_offset = address - mo->address;
 
     const Array* a = state.getSymbolic(mo);
+    const ObjectState* prevOs = state.addressSpace.findObject(mo);
     if(a != nullptr) {
       if(a->size == mo->size) {
-          klee_error("TODO: mark offsets as symbolic");
+          //klee_error("TODO: mark offsets as symbolic");
+          for(unsigned i = address_obj_offset; i < address_obj_offset + size; i++)
+              state.addressSpace.getWriteable(mo, prevOs)->makeSymbolic(i);
+          return;
       } else {
-          klee_error("TODO: resize arrays");
+          klee_error("TODO: resize arrays a.size: %u, mo.size %u, os.size: %u ", a->size, mo->size, prevOs->size);
       }
     }
-    const ObjectState* prevOs = state.addressSpace.findObject(mo);
     ObjectState *prevOsCpy = new ObjectState(*prevOs);
     executeMakeSymbolic(state,mo, name);
     ObjectState* newOs = state.addressSpace.getWriteable(mo, state.addressSpace.findObject(mo));
     assert(prevOs != newOs && "Object state doesn't change with mk sym");
     for(unsigned i = 0; i < mo->size; i++) {
         if(i < address_obj_offset || i >= address_obj_offset + size)
-          newOs->write(i, prevOs->read8(i));
+          newOs->write(i, prevOsCpy->read8(i));
     }
+    delete prevOsCpy;
 }
 
 void Executor::executeMakeSymbolic(ExecutionState &state, 
