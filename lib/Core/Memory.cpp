@@ -242,7 +242,7 @@ void ObjectState::realloc(unsigned int newSize) {
 
           }
           if(updates.root != nullptr) {
-             printf("Updates.root size: %u, name %s\n", updates.root->size, updates.root->name.c_str());
+             //printf("Updates.root size: %u, name %s\n", updates.root->size, updates.root->name.c_str());
             const_cast<Array*>(updates.root)->resize(newSize);
           }
 //isByteKnownSymbolic(i) => !isByteConcrete(i)
@@ -506,7 +506,7 @@ ref<Expr> ObjectState::read8(ref<Expr> offset) const {
   if (size>4096) {
     std::string allocInfo;
     object->getAllocInfo(allocInfo);
-    klee_warning("flushing %d bytes on read, may be slow and/or crash: %s", 
+    klee_warning_once(0,"flushing %d bytes on read, may be slow and/or crash: %s", 
                       size,
                       allocInfo.c_str());
   }
@@ -544,7 +544,7 @@ void ObjectState::write8(ref<Expr> offset, ref<Expr> value) {
   if (size>4096) {
     std::string allocInfo;
     object->getAllocInfo(allocInfo);
-    klee_warning("flushing %d bytes on read, may be slow and/or crash: %s", 
+    klee_warning_once(0,"flushing %d bytes on read, may be slow and/or crash: %s", 
                       size,
                       allocInfo.c_str());
   }

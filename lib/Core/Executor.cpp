@@ -3362,7 +3362,7 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
 
   MemoryObject *mo = state.addressSpace.sbrkMos[poolNum];
   uint64_t increment = ce_increment->getZExtValue() + padding;
-  errs() << " size: " << increment << "\n";
+  //errs() << " size: " << increment << "\n";
   if(increment == 0) {
     return bindLocal(target, state, ConstantExpr::create(0, Context::get().getPointerWidth()));
   }
@@ -3383,8 +3383,8 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   ObjectState* prev_os = state.addressSpace.getWriteable(mo,ros);
  // printf("Got os %p of size %d, by %d\n", prev_os, prev_os->size, increment);
   mo->size += increment;
-  printf("%p, pn: %d, mo: %p, os: %p, resize from %d to %d\n", &state, poolNum, mo, prev_os, mo->size - increment, mo->size);
-  printf("os Object %p\n", prev_os->getObject());
+//  printf("%p, pn: %d, mo: %p, os: %p, resize from %d to %d\n", &state, poolNum, mo, prev_os, mo->size - increment, mo->size);
+ // printf("os Object %p\n", prev_os->getObject());
   assert(mo == prev_os->getObject() && "Reallocing incosnitnet object");
   prev_os->realloc(mo->size);
   prev_os->write64(prev_size, increment - padding);
@@ -3402,15 +3402,15 @@ void Executor::executeAlloc(ExecutionState &state,
                             size_t allocationAlignment) {
 
   if(aa != nullptr && reallocFrom == nullptr) {
-    errs() << "Alloc at  " << target->printFileLine() << "\n";
+//    errs() << "Alloc at  " << target->printFileLine() << "\n";
     if(int pn = aa->isNotAllone(target->inst)) {
-        errs() << "Goes to SBRK! pool num: " << pn -1 << " ";
+//        errs() << "Goes to SBRK! pool num: " << pn -1 << " ";
         executeSbrk(state, target, size, pn - 1);
         return;
     }
   } else if(aa != nullptr) {
     if(int pn = aa->isNotAllone(target->inst)) {
-        errs() << "Realloc of sbrk object pn: " << pn << "  ...bailing\n";
+ //       errs() << "Realloc of sbrk object pn: " << pn << "  ...bailing\n";
         return bindLocal(target, state, ConstantExpr::create(0, Context::get().getPointerWidth()));
     }
   }
