@@ -3383,6 +3383,9 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   ObjectState* prev_os = state.addressSpace.getWriteable(mo,ros);
  // printf("Got os %p of size %d, by %d\n", prev_os, prev_os->size, increment);
   mo->size += increment;
+  printf("%p, pn: %d, mo: %p, os: %p, resize from %d to %d\n", &state, poolNum, mo, prev_os, mo->size - increment, mo->size);
+  printf("os Object %p\n", prev_os->getObject());
+  assert(mo == prev_os->getObject() && "Reallocing incosnitnet object");
   prev_os->realloc(mo->size);
   prev_os->write64(prev_size, increment - padding);
   //printf("done %p\n", prev_os);
@@ -3390,8 +3393,6 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   bindLocal(target, state, ConstantExpr::create(mo->address + prev_size + padding, Context::get().getPointerWidth()));
 }
 
-std::unordered_map<KInstruction*, int>  allocMap;
-int allocCnt = 0;
 void Executor::executeAlloc(ExecutionState &state,
                             ref<Expr> size,
                             bool isLocal,
@@ -3407,7 +3408,7 @@ void Executor::executeAlloc(ExecutionState &state,
         executeSbrk(state, target, size, pn - 1);
         return;
     }
-  } else {
+  } else if(aa != nullptr) {
     if(int pn = aa->isNotAllone(target->inst)) {
         errs() << "Realloc of sbrk object pn: " << pn << "  ...bailing\n";
         return bindLocal(target, state, ConstantExpr::create(0, Context::get().getPointerWidth()));

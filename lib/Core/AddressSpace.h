@@ -75,8 +75,12 @@ namespace klee {
     AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), objects(b.objects), sbrkMos(b.sbrkMos.size()) { 
         for(unsigned i = 0; i < sbrkMos.size(); i++) {
             MemoryObject* mo,* sb = b.sbrkMos[i];
+            const ObjectState* ros = findObject(sb);
+
 //            ObjectState* os, *old_os = b.sbrkOses[i];
             mo = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
+            ObjectState* os = new ObjectState(*ros, mo);
+            bindObject(mo, os);
 //            os = new ObjectState(*old_os);
 //            os->object = mo;
             sbrkMos[i] = mo;

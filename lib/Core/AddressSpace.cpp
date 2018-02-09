@@ -319,12 +319,16 @@ void AddressSpace::copyOutConcretes() {
       ObjectState *os = it->second;
       auto address = reinterpret_cast<std::uint8_t*>(mo->address);
 
-      if (!os->readOnly)
-        memcpy(address, os->concreteStore, mo->size);
+      if (!os->readOnly) {
+        if(mo->size != os->size) {
+            fprintf(stderr,"At addres %p mo and os size don't match mo size: %u, os size: %u\n", address, mo->size, os->size);
+        }
+        memcpy(address, os->concreteStore, os->size);
+      }
     }
   }
 }
-
+//
 bool AddressSpace::copyInConcretes() {
   for (MemoryMap::iterator it = objects.begin(), ie = objects.end(); 
        it != ie; ++it) {

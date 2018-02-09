@@ -513,7 +513,8 @@ Array::~Array() {
 }
 
 void Array::resize(unsigned newSize){
-   assert(size < newSize && "Resizing to smaller arrayis not supported");
+//   assert(size <= newSize && "Resizing to smaller arrayis not supported");
+//   if(size == newSize) return;
    if(isConstantArray()) {
       constantValues.resize(newSize);
       for(unsigned i = size; i < newSize; i++) {

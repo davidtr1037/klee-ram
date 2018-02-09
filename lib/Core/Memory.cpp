@@ -143,6 +143,34 @@ ObjectState::ObjectState(const ObjectState &os)
     size(os.size),
     readOnly(false) {
   assert(!os.readOnly && "no need to copy read only object?");
+  if(size != object->size) fprintf(stderr, "os size %u, mo size %u\n", size, object->size);
+  assert(size == object->size && "Object state size doesn't match memory object size");
+  if (object)
+    object->refCount++;
+
+  if (os.knownSymbolics) {
+    knownSymbolics = new ref<Expr>[size];
+    for (unsigned i=0; i<size; i++)
+      knownSymbolics[i] = os.knownSymbolics[i];
+  }
+
+  memcpy(concreteStore, os.concreteStore, size*sizeof(*concreteStore));
+}
+
+ObjectState::ObjectState(const ObjectState &os, const MemoryObject* mo) 
+  : copyOnWriteOwner(0),
+    refCount(0),
+    object(mo),
+    concreteStore(new uint8_t[os.size]),
+    concreteMask(os.concreteMask ? new BitArray(*os.concreteMask, os.size) : 0),
+    flushMask(os.flushMask ? new BitArray(*os.flushMask, os.size) : 0),
+    knownSymbolics(0),
+    updates(os.updates),
+    size(os.size),
+    readOnly(false) {
+  assert(!os.readOnly && "no need to copy read only object?");
+  if(size != object->size) fprintf(stderr, "os size %u, mo size %u\n", size, object->size);
+  assert(size == object->size && "Object state size doesn't match memory object size");
   if (object)
     object->refCount++;
 
@@ -187,22 +215,26 @@ void ObjectState::realloc(unsigned int newSize) {
 //          delete[] concreteStore;
           if(concreteMask != nullptr) {
               BitArray *cm;
-              printf("Updating concrete mask old size: %d, new size %d, bits %p\n", size, newSize, concreteMask);
-              printf("Bits %p\n", concreteMask->bits);
+              //printf("Updating concrete mask old size: %d, new size %d, bits %p\n", size, newSize, concreteMask);
               cm = new BitArray(*concreteMask, newSize,std::min(size,newSize));
+              if(newSize > size) {
+                  for(unsigned i = size; i < newSize; i++) {
+                      cm->set(i);
+                  }
+              }
               delete concreteMask;
               concreteMask = cm;
           }
           if(flushMask != nullptr) {
               BitArray *fm;
-              printf("Updating flush mask %p bits: %p\n", flushMask, flushMask->bits);
+              //printf("Updating flush mask %p bits: %p\n", flushMask, flushMask->bits);
               fm = new BitArray(*flushMask, newSize,std::min(size,newSize));
               delete flushMask;
               flushMask = fm;
           }
           if(knownSymbolics != nullptr) {
             ref<Expr> *kS;
-            printf("Updating known symbolics %p\n", knownSymbolics);
+            //printf("Updating known symbolics %p\n", knownSymbolics);
             kS = new ref<Expr>[newSize];
             memcpy(kS, knownSymbolics, std::min(size,newSize));
             delete[] knownSymbolics;
@@ -213,6 +245,9 @@ void ObjectState::realloc(unsigned int newSize) {
              printf("Updates.root size: %u, name %s\n", updates.root->size, updates.root->name.c_str());
             const_cast<Array*>(updates.root)->resize(newSize);
           }
+//isByteKnownSymbolic(i) => !isByteConcrete(i)
+//isByteConcrete(i) => !isByteKnownSymbolic(i)
+//!isByteFlushed(i) => (isByteConcrete(i) || isByteKnownSymbolic(i))
 
           delete[] concreteStore;
           concreteStore = store;
@@ -471,7 +506,7 @@ ref<Expr> ObjectState::read8(ref<Expr> offset) const {
   if (size>4096) {
     std::string allocInfo;
     object->getAllocInfo(allocInfo);
-    klee_warning_once(0, "flushing %d bytes on read, may be slow and/or crash: %s", 
+    klee_warning("flushing %d bytes on read, may be slow and/or crash: %s", 
                       size,
                       allocInfo.c_str());
   }
@@ -509,7 +544,7 @@ void ObjectState::write8(ref<Expr> offset, ref<Expr> value) {
   if (size>4096) {
     std::string allocInfo;
     object->getAllocInfo(allocInfo);
-    klee_warning_once(0, "flushing %d bytes on read, may be slow and/or crash: %s", 
+    klee_warning("flushing %d bytes on read, may be slow and/or crash: %s", 
                       size,
                       allocInfo.c_str());
   }
