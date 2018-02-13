@@ -707,29 +707,44 @@ void ObjectState::print() const {
 
 
 void FreeOffsets::addFreeSpace(unsigned offset, unsigned size) {
-    freeObjects.push_back(std::make_pair(offset, size));
+    auto p = std::make_pair(offset, size);
+    freeObjects.insert(p);
+    auto firstNextOffset = freeObjects.upper_bound(p);
+    if(firstNextOffset != freeObjects.end()) {
+        fprintf(stderr,"next offset %u, offset + size %u\n", firstNextOffset->first, offset + size);
+        if(firstNextOffset->first == offset + size) {
+            fprintf(stderr,"Found adjcent at %u with size %u to %u\n", offset, size, firstNextOffset->first);
+            freeObjects.erase(freeObjects.find(p));
+            p.second += firstNextOffset->second;
+            freeObjects.insert(p);
+            freeObjects.erase(firstNextOffset);
+        }
+    }
 }
 #define MAX_SIZE 20000000
 int FreeOffsets::findFreeSpace(unsigned size) { 
     unsigned currentLowestSize = MAX_SIZE;
-    unsigned currentLowestIndex;
-    for(int i = 0; i < freeObjects.size(); i++) {
-        unsigned cSize = freeObjects[i].second;
-        unsigned cOffset = freeObjects[i].first;
+    std::pair<unsigned,unsigned> lowestSpace;
+    for(auto it = freeObjects.begin(); it != freeObjects.end(); it++) {
+        unsigned cSize = it->second;
+        unsigned cOffset = it->first;
 
         if(cSize == size) { //perfect fit we are done
-          freeObjects.erase(freeObjects.begin() + i);
+          freeObjects.erase(it);
           return cOffset;
         } else if (cSize > size && cSize < currentLowestSize) { //remember and keep looking
-          currentLowestIndex = i;
+          lowestSpace = *it;
           currentLowestSize = cSize;
         }
     }
 
     if(currentLowestSize != MAX_SIZE) { // we found something
-        unsigned ret = freeObjects[currentLowestIndex].first;
-        freeObjects[currentLowestIndex].first += size;
-        freeObjects[currentLowestIndex].second -= size;
+        unsigned ret = lowestSpace.first;
+        freeObjects.erase(freeObjects.find(lowestSpace));
+        
+        lowestSpace.first += size;
+        lowestSpace.second -= size;
+        freeObjects.insert(lowestSpace);
         return ret;
     }
     return -1;

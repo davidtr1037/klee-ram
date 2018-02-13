@@ -3566,7 +3566,7 @@ void Executor::executeFree(ExecutionState &state,
           ref<Expr> sizeRead = os->read(offset, 64);
           ConstantExpr* offS = dyn_cast<ConstantExpr>(sizeRead);
           assert(offS && "Size shouldn't be symbolic");
-          wmo->freeSpace->addFreeSpace(offset,offS->getZExtValue());
+          wmo->freeSpace->addFreeSpace(offset,offS->getZExtValue() + 8);
 //          klee_warning_once(0,"Ignoring free");
           klee_warning("%p unused space %u",mo, wmo->freeSpace->totalFreeSpace());
           return;

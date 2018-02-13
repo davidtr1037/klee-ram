@@ -33,7 +33,7 @@ class ArrayCache;
 
 class FreeOffsets {
 private:
-    std::vector<std::pair<unsigned, unsigned>> freeObjects;
+    std::set<std::pair<unsigned, unsigned>> freeObjects;
 public:
     FreeOffsets(): freeObjects() {}
     void addFreeSpace(unsigned offset, unsigned size);
