@@ -31,6 +31,16 @@ class MemoryManager;
 class Solver;
 class ArrayCache;
 
+class FreeOffsets {
+private:
+    std::vector<std::pair<unsigned, unsigned>> freeObjects;
+public:
+    FreeOffsets(): freeObjects() {}
+    void addFreeSpace(unsigned offset, unsigned size);
+    int findFreeSpace(unsigned size);
+    unsigned totalFreeSpace();
+};
+
 class MemoryObject {
   friend class STPBuilder;
   friend class ObjectState;
@@ -53,6 +63,7 @@ public:
   bool isFixed;
 
   bool isUserSpecified;
+  FreeOffsets* freeSpace;
 
   MemoryManager *parent;
 
@@ -80,6 +91,7 @@ public:
       address(_address),
       size(0),
       isFixed(true),
+      freeSpace(NULL),
       parent(NULL),
       allocSite(0) {
   }
@@ -93,6 +105,7 @@ public:
       address(_address),
       size(_size),
       name("unnamed"),
+      freeSpace(NULL),
       isLocal(_isLocal),
       isGlobal(_isGlobal),
       isFixed(_isFixed),

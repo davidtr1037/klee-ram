@@ -80,6 +80,7 @@ namespace klee {
 //            ObjectState* os, *old_os = b.sbrkOses[i];
             mo = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
             ObjectState* os = new ObjectState(*ros, mo);
+            assert(mo->freeSpace == NULL && "copying free space not implemnted yet");
             bindObject(mo, os);
 //            os = new ObjectState(*old_os);
 //            os->object = mo;

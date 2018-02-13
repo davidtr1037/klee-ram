@@ -51,7 +51,7 @@ static int shared_memory_id = 0;
 #ifdef __APPLE__
 static const unsigned shared_memory_size = 1 << 16;
 #else
-static const unsigned shared_memory_size = 1 << 20;
+static const unsigned shared_memory_size = 1 << 22;
 #endif
 
 static void stp_error_handler(const char *err_msg) {
@@ -224,10 +224,13 @@ runAndGetCexForked(::VC vc, STPBuilder *builder, ::VCExpr q,
   unsigned sum = 0;
   for (std::vector<const Array *>::const_iterator it = objects.begin(),
                                                   ie = objects.end();
-       it != ie; ++it)
+       it != ie; ++it) {
     sum += (*it)->size;
-  if (sum >= shared_memory_size)
+  }
+  if (sum >= shared_memory_size) {
+    fprintf(stderr,"Sum %u, shared size %u\n", sum , shared_memory_size);
     llvm::report_fatal_error("not enough shared memory for counterexample");
+    }
 
   fflush(stdout);
   fflush(stderr);

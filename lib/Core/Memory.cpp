@@ -704,3 +704,41 @@ void ObjectState::print() const {
     llvm::errs() << "\t\t[" << un->index << "] = " << un->value << "\n";
   }
 }
+
+
+void FreeOffsets::addFreeSpace(unsigned offset, unsigned size) {
+    freeObjects.push_back(std::make_pair(offset, size));
+}
+#define MAX_SIZE 20000000
+int FreeOffsets::findFreeSpace(unsigned size) { 
+    unsigned currentLowestSize = MAX_SIZE;
+    unsigned currentLowestIndex;
+    for(int i = 0; i < freeObjects.size(); i++) {
+        unsigned cSize = freeObjects[i].second;
+        unsigned cOffset = freeObjects[i].first;
+
+        if(cSize == size) { //perfect fit we are done
+          freeObjects.erase(freeObjects.begin() + i);
+          return cOffset;
+        } else if (cSize > size && cSize < currentLowestSize) { //remember and keep looking
+          currentLowestIndex = i;
+          currentLowestSize = cSize;
+        }
+    }
+
+    if(currentLowestSize != MAX_SIZE) { // we found something
+        unsigned ret = freeObjects[currentLowestIndex].first;
+        freeObjects[currentLowestIndex].first += size;
+        freeObjects[currentLowestIndex].second -= size;
+        return ret;
+    }
+    return -1;
+
+}
+unsigned FreeOffsets::totalFreeSpace() {
+    unsigned totalSize = 0;
+    for(auto& offsetSize : freeObjects) {
+        totalSize += offsetSize.second;
+    }
+    return totalSize;
+}

@@ -3379,18 +3379,30 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   }
   mo->parent = memory;
   mo->allocSite = state.prevPC->inst;
+
+  int freeOffset = -1;
+  if(mo->freeSpace != NULL) {
+      freeOffset = mo->freeSpace->findFreeSpace(increment);
+  }
+
   const ObjectState* ros = state.addressSpace.findObject(mo);
   ObjectState* prev_os = state.addressSpace.getWriteable(mo,ros);
- // printf("Got os %p of size %d, by %d\n", prev_os, prev_os->size, increment);
-  mo->size += increment;
-//  printf("%p, pn: %d, mo: %p, os: %p, resize from %d to %d\n", &state, poolNum, mo, prev_os, mo->size - increment, mo->size);
- // printf("os Object %p\n", prev_os->getObject());
-  assert(mo == prev_os->getObject() && "Reallocing incosnitnet object");
-  prev_os->realloc(mo->size);
-  prev_os->write64(prev_size, increment - padding);
-  //printf("done %p\n", prev_os);
-  
-  bindLocal(target, state, ConstantExpr::create(mo->address + prev_size + padding, Context::get().getPointerWidth()));
+
+  if(freeOffset >= 0) { //handle case where we found a free gap
+      fprintf(stderr,"%p %p %d found space at %u for %u\n",state, mo, poolNum, freeOffset, increment);
+      prev_os->write64(freeOffset, increment - padding);
+      bindLocal(target, state, 
+          ConstantExpr::create(mo->address + freeOffset + padding, Context::get().getPointerWidth()));
+
+  } else {
+      mo->size += increment;
+      fprintf(stderr,"%p %p  %d incrementing by %u to %u freeSpace %p\n", state, mo, poolNum,increment, mo->size);
+      assert(mo == prev_os->getObject() && "Reallocing incosnitnet object");
+      prev_os->realloc(mo->size);
+      prev_os->write64(prev_size, increment - padding);
+      bindLocal(target, state, 
+          ConstantExpr::create(mo->address + prev_size + padding, Context::get().getPointerWidth()));
+  }
 }
 
 void Executor::executeAlloc(ExecutionState &state,
@@ -3401,14 +3413,14 @@ void Executor::executeAlloc(ExecutionState &state,
                             const ObjectState *reallocFrom,
                             size_t allocationAlignment) {
 
-  if(aa != nullptr && reallocFrom == nullptr) {
+  if(aa != nullptr && reallocFrom == nullptr && isLocal == false) {
 //    errs() << "Alloc at  " << target->printFileLine() << "\n";
     if(int pn = aa->isNotAllone(target->inst)) {
 //        errs() << "Goes to SBRK! pool num: " << pn -1 << " ";
         executeSbrk(state, target, size, pn - 1);
         return;
     }
-  } else if(aa != nullptr) {
+  } else if(aa != nullptr && isLocal == false) {
     if(int pn = aa->isNotAllone(target->inst)) {
  //       errs() << "Realloc of sbrk object pn: " << pn << "  ...bailing\n";
         return bindLocal(target, state, ConstantExpr::create(0, Context::get().getPointerWidth()));
@@ -3542,7 +3554,21 @@ void Executor::executeFree(ExecutionState &state,
            ie = rl.end(); it != ie; ++it) {
       const MemoryObject *mo = it->first.first;
       if(aa && aa->isNotAllone(mo->allocSite)) {
-          klee_warning("Ignoring free");
+          MemoryObject *wmo = const_cast<MemoryObject*>(mo);
+          const ObjectState* os = it->first.second;
+          if(wmo->freeSpace == NULL) wmo->freeSpace = new FreeOffsets();
+          ref<Expr>  offrE = mo->getOffsetExpr(address);
+
+          ConstantExpr* offE = dyn_cast<ConstantExpr>(offrE);
+          assert(offE && "Symbolic free addr not supported");
+          unsigned offset = offE->getZExtValue() - 8;
+          
+          ref<Expr> sizeRead = os->read(offset, 64);
+          ConstantExpr* offS = dyn_cast<ConstantExpr>(sizeRead);
+          assert(offS && "Size shouldn't be symbolic");
+          wmo->freeSpace->addFreeSpace(offset,offS->getZExtValue());
+//          klee_warning_once(0,"Ignoring free");
+          klee_warning("%p unused space %u",mo, wmo->freeSpace->totalFreeSpace());
           return;
       }
       if (mo->isLocal) {
@@ -3676,9 +3702,17 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   // XXX there is some query wasteage here. who cares?
   ExecutionState *unbound = &state;
   
-  errs() << "Multiple resolution! " << rl.size() << " in state " << &state << "\n";
   if(rl.size() > 1)  {
+      errs() << "Multiple resolution! " << rl.size() << " in state " << &state << "\n";
       klee_warning("Multiple addresses resolution ... forking!\n");
+      for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
+         const MemoryObject *mo = i->first;
+         mo->allocSite->dump();
+         if(aa != nullptr) {
+             errs() << "isNotALone: " << aa->isNotAllone(mo->allocSite) << "\n";
+         }
+      }
+ 
   }
 
   if(MergeMRes && (nullptr == state.needToClose)  && rl.size() > 1) {

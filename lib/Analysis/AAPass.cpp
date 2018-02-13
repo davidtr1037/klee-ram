@@ -94,6 +94,7 @@ int AAPass::isNotAllone(const llvm::Value* V) {
     PAG* pag = _pta->getPAG();
     NodeID node = pag->getValueNode(V);
     PointsTo& ptsTo = _pta->getPts(node);
+//    ptsTo.set(node);
     int resultingGroup = 1;
     for(auto& pts : disjointObjects) {
         if(pts.contains(ptsTo)) return resultingGroup;
