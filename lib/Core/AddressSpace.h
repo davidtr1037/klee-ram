@@ -77,15 +77,11 @@ namespace klee {
             MemoryObject* mo,* sb = b.sbrkMos[i];
             const ObjectState* ros = findObject(sb);
 
-//            ObjectState* os, *old_os = b.sbrkOses[i];
             mo = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
             ObjectState* os = new ObjectState(*ros, mo);
             assert(mo->freeSpace == NULL && "copying free space not implemnted yet");
             bindObject(mo, os);
-//            os = new ObjectState(*old_os);
-//            os->object = mo;
             sbrkMos[i] = mo;
-//            sbrkOses[i] = os;
 
         }
     }

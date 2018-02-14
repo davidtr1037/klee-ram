@@ -64,7 +64,10 @@ bool OpenMergePass::runOnFunction(Function& F) {
 }
 char RemoveReallocPass::ID = 0;
 bool RemoveReallocPass::doInitialization(Module &M) {
-      mallocFun = M.getFunction("malloc");
+      //mallocFun = M.getFunction("malloc");
+      Constant* c1 = M.getOrInsertFunction("malloc",
+                                        TypeBuilder<void*(size_t), false>::get(M.getContext()));
+      mallocFun = dyn_cast<Function>(c1);
       assert(mallocFun);
       Constant* c  = M.getOrInsertFunction("memcpy", 
                                            TypeBuilder<void*(void*, void*, uint64_t), 
@@ -91,7 +94,7 @@ bool RemoveReallocPass::runOnFunction(Function &F) {
 
               Value* size = callInst->getArgOperand(1);
               Value* address = callInst->getOperand(0);
-//Things can go horribly wrong here, if it's not doing reallocation iwthin the same memory pool
+//Things can go horribly wrong here, if it's not doing reallocation iwthin the same memory pool 
 
               std::vector<Value*> mallocArgs;
               mallocArgs.push_back(size);
@@ -101,7 +104,8 @@ bool RemoveReallocPass::runOnFunction(Function &F) {
               gepIdx.push_back(ConstantInt::getSigned(IntegerType::get(F.getContext(), 8), -1));
               GetElementPtrInst * gep = GetElementPtrInst::Create(
 //                  memcpyFun->getFunctionType()->getParamType(2),
-                  CastInst::CreatePointerCast(address,Type::getInt64PtrTy(F.getContext()), "ptrcast", ThenTerm),
+//Change this for padding!!!
+                  CastInst::CreatePointerCast(address,Type::getInt32PtrTy(F.getContext()), "ptrcast", ThenTerm),
                   gepIdx,
                   "gep", ThenTerm );
               LoadInst* storedSize = new LoadInst(gep, "storedSize", ThenTerm);
@@ -109,7 +113,10 @@ bool RemoveReallocPass::runOnFunction(Function &F) {
               std::vector<Value*> memcpyArg;
               memcpyArg.push_back(mallocedAddr);
               memcpyArg.push_back(address);
-              memcpyArg.push_back(storedSize); //assumes realloc increases size
+              //memcpyArg.push_back(storedSize); //assumes realloc increases size
+              memcpyArg.push_back(CastInst::CreateZExtOrBitCast(storedSize,
+                                                   memcpyFun->getFunctionType()->getParamType(2),
+                                                   "", ThenTerm)); //assumes realloc increases size
 //              memcpyArg.push_back(ConstantInt::get(memcpyFun->getFunctionType()->getParamType(2), 8));
 //              memcpyArg.push_back(CastInst::CreateZExtOrBitCast(size, 
 //                                                   memcpyFun->getFunctionType()->getParamType(2),

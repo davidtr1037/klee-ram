@@ -3358,7 +3358,7 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
    // assert(success && "FIXME: Unhandled solver failure");
    // ce_increment = &(*example);
   }
-  const uint64_t padding = 8;
+  const uint64_t padding = 4;
 
   MemoryObject *mo = state.addressSpace.sbrkMos[poolNum];
   uint64_t increment = ce_increment->getZExtValue() + padding;
@@ -3389,17 +3389,22 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   ObjectState* prev_os = state.addressSpace.getWriteable(mo,ros);
 
   if(freeOffset >= 0) { //handle case where we found a free gap
-      fprintf(stderr,"%p %p %d found space at %u for %u\n",state, mo, poolNum, freeOffset, increment);
-      prev_os->write64(freeOffset, increment - padding);
+      fprintf(stderr,"%p %p %d os: %p found space at %u for %u\n",&state, mo, poolNum, prev_os, freeOffset, increment);
+      prev_os->realloc(mo->size);
+      fprintf(stderr, "About to clear freed space");
+      prev_os->write32(freeOffset, increment - padding);
+      for(unsigned i = freeOffset + padding; i < freeOffset + increment; i++) 
+          prev_os->write8(i,0);
+      prev_os->realloc(mo->size);
       bindLocal(target, state, 
           ConstantExpr::create(mo->address + freeOffset + padding, Context::get().getPointerWidth()));
 
   } else {
       mo->size += increment;
-      fprintf(stderr,"%p %p  %d incrementing by %u to %u freeSpace %p\n", state, mo, poolNum,increment, mo->size);
+      fprintf(stderr,"%p %p  %d incrementing by %u to %u freeSpace %p\n", &state, mo, poolNum,increment, mo->size);
       assert(mo == prev_os->getObject() && "Reallocing incosnitnet object");
       prev_os->realloc(mo->size);
-      prev_os->write64(prev_size, increment - padding);
+      prev_os->write32(prev_size, increment - padding);
       bindLocal(target, state, 
           ConstantExpr::create(mo->address + prev_size + padding, Context::get().getPointerWidth()));
   }
@@ -3561,14 +3566,16 @@ void Executor::executeFree(ExecutionState &state,
 
           ConstantExpr* offE = dyn_cast<ConstantExpr>(offrE);
           assert(offE && "Symbolic free addr not supported");
-          unsigned offset = offE->getZExtValue() - 8;
+          const unsigned padding = 4;
+          unsigned offset = offE->getZExtValue() - padding;
           
-          ref<Expr> sizeRead = os->read(offset, 64);
+          ref<Expr> sizeRead = os->read(offset, padding*8);
           ConstantExpr* offS = dyn_cast<ConstantExpr>(sizeRead);
           assert(offS && "Size shouldn't be symbolic");
-          wmo->freeSpace->addFreeSpace(offset,offS->getZExtValue() + 8);
+          wmo->freeSpace->addFreeSpace(offset,offS->getZExtValue() + padding);
 //          klee_warning_once(0,"Ignoring free");
-          klee_warning("%p unused space %u",mo, wmo->freeSpace->totalFreeSpace());
+          wmo->freeSpace->totalFreeSpace();
+//          klee_warning("%p unused space %u",mo, wmo->freeSpace->totalFreeSpace());
           return;
       }
       if (mo->isLocal) {

@@ -207,8 +207,14 @@ ArrayCache *ObjectState::getArrayCache() const {
 
 /***/
 void ObjectState::realloc(unsigned int newSize) {
+           for(unsigned i = 0; i < size; i++) {
+              if(!isByteFlushed(i) && !(isByteConcrete(i) || isByteKnownSymbolic(i))) {
+                  printf("%p mo: %pByte %u, is  pre unflushed and not concrete or symbolic size: %u newSize: %u\n",this,this->object, i, size, newSize);
+              }
+
+          }
+          if(newSize == size) return;
           uint8_t *store = new uint8_t[newSize];
-          
           memcpy(store, concreteStore, std::min(size,newSize));
 //          printf("Os %p Realloc size %d, newSize %d from %p to %p, concreteMaskL %p flushMask %p\n", this, size, newSize, concreteStore, store, concreteMask, flushMask);
 //leads to double free for some reason
@@ -248,10 +254,11 @@ void ObjectState::realloc(unsigned int newSize) {
 //isByteKnownSymbolic(i) => !isByteConcrete(i)
 //isByteConcrete(i) => !isByteKnownSymbolic(i)
 //!isByteFlushed(i) => (isByteConcrete(i) || isByteKnownSymbolic(i))
-
           delete[] concreteStore;
           concreteStore = store;
           size = newSize;
+
+
 }
 
 const UpdateList &ObjectState::getUpdates() const {
@@ -490,6 +497,7 @@ ref<Expr> ObjectState::read8(unsigned offset) const {
   } else if (isByteKnownSymbolic(offset)) {
     return knownSymbolics[offset];
   } else {
+      if(!isByteFlushed(offset)) fprintf(stderr, "byte %u unflushed\n", offset);
     assert(isByteFlushed(offset) && "unflushed byte without cache value");
     
     return ReadExpr::create(getUpdates(), 
@@ -711,9 +719,9 @@ void FreeOffsets::addFreeSpace(unsigned offset, unsigned size) {
     freeObjects.insert(p);
     auto firstNextOffset = freeObjects.upper_bound(p);
     if(firstNextOffset != freeObjects.end()) {
-        fprintf(stderr,"next offset %u, offset + size %u\n", firstNextOffset->first, offset + size);
+//        fprintf(stderr,"next offset %u, offset + size %u\n", firstNextOffset->first, offset + size);
         if(firstNextOffset->first == offset + size) {
-            fprintf(stderr,"Found adjcent at %u with size %u to %u\n", offset, size, firstNextOffset->first);
+//            fprintf(stderr,"Found adjcent at %u with size %u to %u\n", offset, size, firstNextOffset->first);
             freeObjects.erase(freeObjects.find(p));
             p.second += firstNextOffset->second;
             freeObjects.insert(p);
@@ -752,8 +760,14 @@ int FreeOffsets::findFreeSpace(unsigned size) {
 }
 unsigned FreeOffsets::totalFreeSpace() {
     unsigned totalSize = 0;
+    unsigned count = 0;
+    std::vector<unsigned> sizes(freeObjects.size());
     for(auto& offsetSize : freeObjects) {
         totalSize += offsetSize.second;
+        sizes[count] = offsetSize.second;
+        count++;
     }
+    std::sort(sizes.begin(), sizes.end());
+    fprintf(stderr, "total size: %u, count %u, mean %f median: %u\n", totalSize, count, totalSize / (double)count, sizes[count / 2]);
     return totalSize;
 }
