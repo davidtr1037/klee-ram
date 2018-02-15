@@ -3387,15 +3387,19 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
 
   const ObjectState* ros = state.addressSpace.findObject(mo);
   ObjectState* prev_os = state.addressSpace.getWriteable(mo,ros);
+  assert(prev_os->object == mo && "os doesn't belong to the memory object");
 
   if(freeOffset >= 0) { //handle case where we found a free gap
       fprintf(stderr,"%p %p %d os: %p found space at %u for %u\n",&state, mo, poolNum, prev_os, freeOffset, increment);
+    state.pc->printFileLine(errs());
+    errs() << "\n";
+    state.dumpStack(errs());
+    errs() << "\n";
       prev_os->realloc(mo->size);
-      fprintf(stderr, "About to clear freed space");
+      //fprintf(stderr, "About to clear freed space state: %p\n" &state);
       prev_os->write32(freeOffset, increment - padding);
-      for(unsigned i = freeOffset + padding; i < freeOffset + increment; i++) 
-          prev_os->write8(i,0);
-      prev_os->realloc(mo->size);
+      //for(unsigned i = freeOffset + padding; i < freeOffset + increment; i++) 
+      //    prev_os->write8(i,0);
       bindLocal(target, state, 
           ConstantExpr::create(mo->address + freeOffset + padding, Context::get().getPointerWidth()));
 

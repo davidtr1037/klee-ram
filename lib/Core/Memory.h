@@ -166,7 +166,6 @@ private:
   friend class ObjectHolder;
   unsigned refCount;
 
-  const MemoryObject *object;
 
   uint8_t *concreteStore;
 
@@ -182,6 +181,7 @@ private:
   mutable UpdateList updates;
 
 public:
+  const MemoryObject *object;
   unsigned size;
 
   bool readOnly;
