@@ -3353,11 +3353,7 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   if(!ce_increment) {
     return terminateStateOnError(state, "Symbolic arguments to sbrk are unsupported",
                                   Model, NULL, "Unsupported sym arguments");
-   // ref<ConstantExpr> example;
-   // bool success = solver->getValue(state, increment_param, example);
-   // assert(success && "FIXME: Unhandled solver failure");
-   // ce_increment = &(*example);
-  }
+ }
   const uint64_t padding = 4;
 
   MemoryObject *mo = state.addressSpace.sbrkMos[poolNum];
@@ -3390,22 +3386,15 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   assert(prev_os->object == mo && "os doesn't belong to the memory object");
 
   if(freeOffset >= 0) { //handle case where we found a free gap
-      fprintf(stderr,"%p %p %d os: %p found space at %u for %u\n",&state, mo, poolNum, prev_os, freeOffset, increment);
-    state.pc->printFileLine(errs());
-    errs() << "\n";
-    state.dumpStack(errs());
-    errs() << "\n";
-      prev_os->realloc(mo->size);
-      //fprintf(stderr, "About to clear freed space state: %p\n" &state);
+      //fprintf(stderr,"%p %p %d os: %p found space at %u for %u\n",&state, mo, poolNum, prev_os, freeOffset, increment);
+     prev_os->realloc(mo->size);
       prev_os->write32(freeOffset, increment - padding);
-      //for(unsigned i = freeOffset + padding; i < freeOffset + increment; i++) 
-      //    prev_os->write8(i,0);
       bindLocal(target, state, 
           ConstantExpr::create(mo->address + freeOffset + padding, Context::get().getPointerWidth()));
 
   } else {
       mo->size += increment;
-      fprintf(stderr,"%p %p  %d incrementing by %u to %u freeSpace %p\n", &state, mo, poolNum,increment, mo->size);
+//      fprintf(stderr,"%p %p  %d incrementing by %u to %u freeSpace %p\n", &state, mo, poolNum,increment, mo->size);
       assert(mo == prev_os->getObject() && "Reallocing incosnitnet object");
       prev_os->realloc(mo->size);
       prev_os->write32(prev_size, increment - padding);
@@ -3568,16 +3557,19 @@ void Executor::executeFree(ExecutionState &state,
           if(wmo->freeSpace == NULL) wmo->freeSpace = new FreeOffsets();
           ref<Expr>  offrE = mo->getOffsetExpr(address);
 
-          ConstantExpr* offE = dyn_cast<ConstantExpr>(offrE);
-          assert(offE && "Symbolic free addr not supported");
           const unsigned padding = 4;
+          ConstantExpr* offE = dyn_cast<ConstantExpr>(offrE);
+          if(offE == nullptr) {
+               klee_warning("Ignoring symbolic free");
+//               offrE->dump();
+               return;
+          }
           unsigned offset = offE->getZExtValue() - padding;
           
           ref<Expr> sizeRead = os->read(offset, padding*8);
           ConstantExpr* offS = dyn_cast<ConstantExpr>(sizeRead);
           assert(offS && "Size shouldn't be symbolic");
           wmo->freeSpace->addFreeSpace(offset,offS->getZExtValue() + padding);
-//          klee_warning_once(0,"Ignoring free");
           wmo->freeSpace->totalFreeSpace();
 //          klee_warning("%p unused space %u",mo, wmo->freeSpace->totalFreeSpace());
           return;

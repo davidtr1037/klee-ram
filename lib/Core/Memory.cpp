@@ -207,15 +207,7 @@ ArrayCache *ObjectState::getArrayCache() const {
 
 /***/
 void ObjectState::realloc(unsigned int newSize) {
-           for(unsigned i = 0; i < size; i++) {
-              if(!isByteFlushed(i) && !(isByteConcrete(i) || isByteKnownSymbolic(i))) {
-                  fprintf(stderr,"%p mo: %p Byte %u, is unflushed: %u newSize: %u f:%d, c:%d, s: %d knowSymbolics %p\n",
-                      this,this->object, i, size, newSize, 
-                      isByteFlushed(i), isByteConcrete(i), isByteKnownSymbolic(i), knownSymbolics);
-              }
-
-          }
-          if(newSize == size) return;
+         if(newSize == size) return;
           uint8_t *store = new uint8_t[newSize];
           memcpy(store, concreteStore, std::min(size,newSize));
 //          printf("Os %p Realloc size %d, newSize %d from %p to %p, concreteMaskL %p flushMask %p\n", this, size, newSize, concreteStore, store, concreteMask, flushMask);
@@ -244,7 +236,6 @@ void ObjectState::realloc(unsigned int newSize) {
             ref<Expr> *kS;
             //printf("Updating known symbolics %p\n", knownSymbolics);
             kS = new ref<Expr>[newSize];
-            //memcpy(kS, knownSymbolics, std::min(size,newSize));
             for(int i = 0; i < std::min(size,newSize); i++) {
                 kS[i] = knownSymbolics[i];
             }
@@ -256,9 +247,6 @@ void ObjectState::realloc(unsigned int newSize) {
              //printf("Updates.root size: %u, name %s\n", updates.root->size, updates.root->name.c_str());
             const_cast<Array*>(updates.root)->resize(newSize);
           }
-//isByteKnownSymbolic(i) => !isByteConcrete(i)
-//isByteConcrete(i) => !isByteKnownSymbolic(i)
-//!isByteFlushed(i) => (isByteConcrete(i) || isByteKnownSymbolic(i))
           delete[] concreteStore;
           concreteStore = store;
           size = newSize;
@@ -391,13 +379,10 @@ void ObjectState::flushRangeForRead(unsigned rangeBase,
                                     unsigned rangeSize) const {
   if (!flushMask) {
     flushMask = new BitArray(size, true);
-//    printf("%p made flushMask %p, of size:%d", this, flushMask, size);
   }
  
   for (unsigned offset=rangeBase; offset<rangeBase+rangeSize; offset++) {
-    if(offset == 31139) printf("Read flush byte 31139\n");
     if (!isByteFlushed(offset)) {
-    if(offset == 31139) printf("Read flushing byte 31139\n");
       if (isByteConcrete(offset)) {
         updates.extend(ConstantExpr::create(offset, Expr::Int32),
                        ConstantExpr::create(concreteStore[offset], Expr::Int8));
@@ -416,26 +401,21 @@ void ObjectState::flushRangeForWrite(unsigned rangeBase,
                                      unsigned rangeSize) {
   if (!flushMask) {
     flushMask = new BitArray(size, true);
-//    printf("%p made flushMask %p, of size:%d", this, flushMask, size);
   }
 
   for (unsigned offset=rangeBase; offset<rangeBase+rangeSize; offset++) {
-    if(offset == 31139) printf("Write flush byte 31139\n");
     if (!isByteFlushed(offset)) {
       if (isByteConcrete(offset)) {
         updates.extend(ConstantExpr::create(offset, Expr::Int32),
                        ConstantExpr::create(concreteStore[offset], Expr::Int8));
         markByteSymbolic(offset);
-        if(offset == 31139) printf("Write flush byte 31139 mark symbolic\n");
       } else {
         assert(isByteKnownSymbolic(offset) && "invalid bit set in flushMask");
         updates.extend(ConstantExpr::create(offset, Expr::Int32),
                        knownSymbolics[offset]);
         setKnownSymbolic(offset, 0);
-        if(offset == 31139) printf("Write flush byte 31139 known symbolic\n");
       }
 
-        if(offset == 31139) printf("Write flush byte 31139 flush\n");
       flushMask->unset(offset);
     } else {
       // flushed bytes that are written over still need
@@ -443,7 +423,6 @@ void ObjectState::flushRangeForWrite(unsigned rangeBase,
       if (isByteConcrete(offset)) {
         markByteSymbolic(offset);
       } else if (isByteKnownSymbolic(offset)) {
-        if(offset == 31139) printf("Read flush byte 31139 known symbolic flush\n");
         setKnownSymbolic(offset, 0);
       }
     }
@@ -470,7 +449,6 @@ void ObjectState::markByteConcrete(unsigned offset) {
 void ObjectState::markByteSymbolic(unsigned offset) {
   if (!concreteMask) {
     concreteMask = new BitArray(size, true);
-//    printf("%p made cm %p\n", this, concreteMask);
   }
   concreteMask->unset(offset);
 }
@@ -483,7 +461,6 @@ void ObjectState::markByteUnflushed(unsigned offset) {
 void ObjectState::markByteFlushed(unsigned offset) {
   if (!flushMask) {
     flushMask = new BitArray(size, false);
-//    printf("%p made flushMask %p, of size:%d", this, flushMask, size);
   } else {
     flushMask->unset(offset);
   }
@@ -509,9 +486,6 @@ ref<Expr> ObjectState::read8(unsigned offset) const {
   } else if (isByteKnownSymbolic(offset)) {
     return knownSymbolics[offset];
   } else {
-      if(!isByteFlushed(offset)) {
-          fprintf(stderr, "byte %u unflushed os: %p knownSymbolics: %p\n", offset, this, knownSymbolics);
-     }
     assert(isByteFlushed(offset) && "unflushed byte without cache value");
     
     return ReadExpr::create(getUpdates(), 
@@ -528,7 +502,7 @@ ref<Expr> ObjectState::read8(ref<Expr> offset) const {
   if (size>4096) {
     std::string allocInfo;
     object->getAllocInfo(allocInfo);
-    klee_warning_once(0,"flushing %d bytes on read, may be slow and/or crash: %s", 
+    klee_warning_once((void*)size,"flushing %d bytes on read, may be slow and/or crash: %s", 
                       size,
                       allocInfo.c_str());
   }
@@ -550,19 +524,12 @@ void ObjectState::write8(unsigned offset, ref<Expr> value) {
   if (ConstantExpr *CE = dyn_cast<ConstantExpr>(value)) {
     write8(offset, (uint8_t) CE->getZExtValue(8));
   } else {
-    fprintf(stderr,"Symbolic write to offset %u value %p\n", offset,  value.get());
-    if(offset > 30000) {
-        value->dump();
-        errs() << "\n";
-    }
     unsigned i = offset;
-    if(!isByteFlushed(i) && !(isByteConcrete(i) || isByteKnownSymbolic(i))) fprintf(stderr, "Invariant holds\n");
     assert(value.get() != NULL && "NULL value breaks invariants");
     setKnownSymbolic(offset, value.get());
       
     markByteSymbolic(offset);
     markByteUnflushed(offset);
-    if(!isByteFlushed(i) && !(isByteConcrete(i) || isByteKnownSymbolic(i))) fprintf(stderr, "Still holding\n");
   }
 }
 
