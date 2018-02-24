@@ -3707,7 +3707,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   
   if(rl.size() > 1)  {
       errs() << "Multiple resolution! " << rl.size() << " in state " << &state << "\n";
-      klee_warning("Multiple addresses resolution ... forking!\n");
+      klee_warning("Multiple addresses resolution %d ... forking!\n", rl.size());
       for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
          const MemoryObject *mo = i->first;
          mo->allocSite->dump();
