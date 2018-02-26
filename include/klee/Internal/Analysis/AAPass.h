@@ -49,6 +49,7 @@ public:
   //void getPointsTo(const llvm::Value* V);
   int getMaxGroupedObjects();
   int isNotAllone(const llvm::Value* V);
+  void printsPtsTo(const llvm::Value* V);
 
 private:
   void runPointerAnalysis(llvm::Module &module, u32_t kind);

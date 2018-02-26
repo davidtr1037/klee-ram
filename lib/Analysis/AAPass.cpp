@@ -1,4 +1,5 @@
 #include <MemoryModel/PointerAnalysis.h>
+#include <MemoryModel/MemModel.h>
 #include <WPA/Andersen.h>
 #include <WPA/FlowSensitive.h>
 #include "llvm/ADT/SparseBitVector.h"
@@ -50,7 +51,7 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
     PAG* pag = _pta->getPAG();
     PointsTo memObjects;
     for(auto& idToType : *pag) {
-        if(isa<ObjPN>(idToType.second))
+        if(isa<ObjPN>(idToType.second) && !pag->getObject(idToType.first)->isFunction()  )
             memObjects.set(idToType.first);
     }
     errs() << "All mem objects: ";
@@ -76,18 +77,58 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
           }
         }
     }
+    
+    int changes = 0;
+    do {
+      changes = 0;
+      for(auto it = disjointObjects.begin(); it != disjointObjects.end(); it++) {
+            PointsTo &dob = *it;
+            for(auto it1  = disjointObjects.begin(); it1 != disjointObjects.end(); it1++) {
+                if(it != it1 && it->intersects(*it1)) {
+                    errs() << "itneresects!!\n";
+                    dob |= *it1;
+                    it1 = disjointObjects.erase(it1);
+                    changes++;
+                }
+            }
+            if(changes > 0) break;
+      }
+      errs() << "Completed loop with " << changes << " changes\n";
+    } while(changes > 0);
 
     for(auto& dob : disjointObjects) {
-      llvm::dump(dob, errs());
-     // for(auto nid : dob) {
-     //   pag->getObject(nid)->getRefVal()->dump();
-     // }
+        memObjects = memObjects - dob;
     }
+    for(auto nid: memObjects) {
+        PointsTo *pt = new PointsTo();
+        pt->set(nid);
+        disjointObjects.push_front(*pt);
+    }
+    for(auto& dob : disjointObjects) {
+      llvm::dump(dob, errs());
+      //for(auto nid : dob) {
+      //  pag->getObject(nid)->getRefVal()->dump();
+      //}
+    }
+    errs() << "NUmber of dijoint objects: " << disjointObjects.size() << "\n";
 
 }
 
 int AAPass::getMaxGroupedObjects() {
     return disjointObjects.size();
+}
+void AAPass::printsPtsTo(const llvm::Value* V) {
+  assert(V && "Can-t print null ptrs");
+  PAG* pag = _pta->getPAG();
+  NodeID node = pag->getValueNode(V);
+  PointsTo& ptsTo = _pta->getPts(node);
+  for(auto nid: ptsTo) {
+    errs() << "node: " << nid << " -> ";
+    pag->getObject(nid)->getRefVal()->dump();
+  }
+  errs() << "node: " << node << " -> ";
+  llvm::dump(ptsTo, errs());
+                                                        
 }
 int AAPass::isNotAllone(const llvm::Value* V) {
     if(V == nullptr) return 0;
@@ -96,6 +137,7 @@ int AAPass::isNotAllone(const llvm::Value* V) {
     PointsTo& ptsTo = _pta->getPts(node);
 //    ptsTo.set(node);
     int resultingGroup = 1;
+    //what if it itnerescts with more than 1? can it?
     for(auto& pts : disjointObjects) {
         if(pts.contains(ptsTo)) return resultingGroup;
         resultingGroup++;

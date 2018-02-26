@@ -2835,13 +2835,13 @@ void Executor::run(ExecutionState &initialState) {
     maxGroupObj = aa->getMaxGroupedObjects();
   }
   for(int poolNum = 0; poolNum < maxGroupObj; poolNum++) {
-    void * heapSpace = mmap(NULL, 1024*1024*10, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
+    void * heapSpace = mmap(NULL, 1024*60, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
     if(heapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
     int sbrkHeapSize = 0;
     MemoryObject * sbrkMo;
 
     sbrkMo = new MemoryObject((uint64_t)heapSpace, sbrkHeapSize, false, true, false, NULL, NULL);
-    sbrkMo->name = "sbrkMo";
+    sbrkMo->name = "sbrkMo" + std::to_string(poolNum);
     ObjectState* os = new ObjectState(sbrkMo);
     initialState.addressSpace.sbrkMos.push_back(sbrkMo);
     //initialState.addressSpace.sbrkOses.push_back(os);
@@ -3708,11 +3708,16 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   if(rl.size() > 1)  {
       errs() << "Multiple resolution! " << rl.size() << " in state " << &state << "\n";
       klee_warning("Multiple addresses resolution %d ... forking!\n", rl.size());
+      if(aa != nullptr) {
+          state.dumpStack(errs());
+          address->dump();
+      }
       for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
          const MemoryObject *mo = i->first;
-         mo->allocSite->dump();
+         state.prevPC->inst->dump();
          if(aa != nullptr) {
-             errs() << "isNotALone: " << aa->isNotAllone(mo->allocSite) << "\n";
+             errs() << "isNotALone: " << aa->isNotAllone(state.prevPC->inst) << " mo: " << mo << " " << mo->name << " addrs: " << mo->address << " size: " << mo->size <<  "\n";
+             aa->printsPtsTo(state.prevPC->inst);
          }
       }
  
