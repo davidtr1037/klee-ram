@@ -688,17 +688,34 @@ void Executor::initializeGlobals(ExecutionState &state) {
     } else {
       Type *ty = i->getType()->getElementType();
       uint64_t size = kmodule->targetData->getTypeStoreSize(ty);
-      MemoryObject *mo = memory->allocate(size, /*isLocal=*/false,
-                                          /*isGlobal=*/true, /*allocSite=*/v,
-                                          /*alignment=*/globalObjectAlignment);
-      if (!mo)
-        llvm::report_fatal_error("out of memory");
-      ObjectState *os = bindObjectInState(state, mo, false);
-      globalObjects.insert(std::make_pair(v, mo));
-      globalAddresses.insert(std::make_pair(v, mo->getBaseExpr()));
+      if(aa != nullptr) {
+          int pn = aa->isNotAllone(i);
+          aa->printsPtsTo(i);
+          //errs() << pn << "\n";
+          errs() << i->getName() << " pn: " << pn << "\n";
+          if(pn > 0) {
+            ref<klee::ConstantExpr> addr = executeSbrk(state, klee::ConstantExpr::create(size, 32), pn - 1);
+            globalAddresses.insert(std::make_pair(v, addr));
+            MemoryObject* mo = state.addressSpace.sbrkMos[pn -1];
+            const ObjectState *os = state.addressSpace.findObject(mo);
+            assert(os);
+            ObjectState *wos = state.addressSpace.getWriteable(mo, os);
+            unsigned offset = addr->getZExtValue() - mo->address;
+            initializeGlobalObject(state, wos, i->getInitializer(), offset);
+          }
+      } else {
+          MemoryObject *mo = memory->allocate(size, /*isLocal=*/false,
+                                              /*isGlobal=*/true, /*allocSite=*/v,
+                                              /*alignment=*/globalObjectAlignment);
+          if (!mo)
+            llvm::report_fatal_error("out of memory");
+          ObjectState *os = bindObjectInState(state, mo, false);
+          globalObjects.insert(std::make_pair(v, mo));
+          globalAddresses.insert(std::make_pair(v, mo->getBaseExpr()));
 
-      if (!i->hasInitializer())
-          os->initializeToRandom();
+          if (!i->hasInitializer())
+              os->initializeToRandom();
+        }
     }
   }
   
@@ -716,6 +733,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
        i != e; ++i) {
     if (i->hasInitializer()) {
       const GlobalVariable *v = &*i;
+      if(globalObjects.find(v) == globalObjects.end()) continue;
       MemoryObject *mo = globalObjects.find(v)->second;
       const ObjectState *os = state.addressSpace.findObject(mo);
       assert(os);
@@ -2830,24 +2848,6 @@ void Executor::doDumpStates() {
 void Executor::run(ExecutionState &initialState) {
   bindModuleConstants();
   
-  int maxGroupObj = 1;
-  if(aa != nullptr) {
-    maxGroupObj = aa->getMaxGroupedObjects();
-  }
-  for(int poolNum = 0; poolNum < maxGroupObj; poolNum++) {
-    void * heapSpace = mmap(NULL, 1024*60, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
-    if(heapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
-    int sbrkHeapSize = 0;
-    MemoryObject * sbrkMo;
-
-    sbrkMo = new MemoryObject((uint64_t)heapSpace, sbrkHeapSize, false, true, false, NULL, NULL);
-    sbrkMo->name = "sbrkMo" + std::to_string(poolNum);
-    ObjectState* os = new ObjectState(sbrkMo);
-    initialState.addressSpace.sbrkMos.push_back(sbrkMo);
-    //initialState.addressSpace.sbrkOses.push_back(os);
-    initialState.addressSpace.bindObject(sbrkMo, os);
-  }
-
   // Delay init till now so that ticks don't accrue during
   // optimization and such.
   initTimers();
@@ -3347,12 +3347,14 @@ ObjectState *Executor::bindObjectInState(ExecutionState &state,
   return os;
 }
 
-void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr> increment_param, int poolNum) {
+//returns the address
+ref<klee::ConstantExpr> Executor::executeSbrk(ExecutionState &state, ref<Expr> increment_param, int poolNum) {
   ConstantExpr *ce_increment = dyn_cast<ConstantExpr>(increment_param);
 
   if(!ce_increment) {
-    return terminateStateOnError(state, "Symbolic arguments to sbrk are unsupported",
+    terminateStateOnError(state, "Symbolic arguments to sbrk are unsupported",
                                   Model, NULL, "Unsupported sym arguments");
+    return nullptr;
  }
   const uint64_t padding = 4;
 
@@ -3360,18 +3362,19 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
   uint64_t increment = ce_increment->getZExtValue() + padding;
   //errs() << " size: " << increment << "\n";
   if(increment == 0) {
-    return bindLocal(target, state, ConstantExpr::create(0, Context::get().getPointerWidth()));
+    return ConstantExpr::create(0, Context::get().getPointerWidth());
   }
   if(increment > 200000) {
     errs() << "inc is: " << increment << "\n";
-    return terminateStateOnError(state, "Negative or big arguments to sbrk are not supported",
+    terminateStateOnError(state, "Negative or big arguments to sbrk are not supported",
                                   Model, NULL, "Unsupported sym arguments");
+    return nullptr;
   }
   unsigned prev_size = mo->size;
   //printf("In state %p, poolNum %d, by %d\n", &state, poolNum, increment);
   if(mo == nullptr) {
       klee_warning("Null memory object");
-      return bindLocal(target, state, ConstantExpr::create(-1, Expr::Int64));
+      return ConstantExpr::create(-1, Expr::Int64);
   }
   mo->parent = memory;
   mo->allocSite = state.prevPC->inst;
@@ -3389,8 +3392,7 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
       //fprintf(stderr,"%p %p %d os: %p found space at %u for %u\n",&state, mo, poolNum, prev_os, freeOffset, increment);
      prev_os->realloc(mo->size);
       prev_os->write32(freeOffset, increment - padding);
-      bindLocal(target, state, 
-          ConstantExpr::create(mo->address + freeOffset + padding, Context::get().getPointerWidth()));
+          return ConstantExpr::create(mo->address + freeOffset + padding, Context::get().getPointerWidth());
 
   } else {
       mo->size += increment;
@@ -3398,8 +3400,7 @@ void Executor::executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr
       assert(mo == prev_os->getObject() && "Reallocing incosnitnet object");
       prev_os->realloc(mo->size);
       prev_os->write32(prev_size, increment - padding);
-      bindLocal(target, state, 
-          ConstantExpr::create(mo->address + prev_size + padding, Context::get().getPointerWidth()));
+      return ConstantExpr::create(mo->address + prev_size + padding, Context::get().getPointerWidth());
   }
 }
 
@@ -3415,7 +3416,8 @@ void Executor::executeAlloc(ExecutionState &state,
 //    errs() << "Alloc at  " << target->printFileLine() << "\n";
     if(int pn = aa->isNotAllone(target->inst)) {
 //        errs() << "Goes to SBRK! pool num: " << pn -1 << " ";
-        executeSbrk(state, target, size, pn - 1);
+        //If the inc is too big things will go wrong probvably
+        bindLocal(target, state, executeSbrk(state, size, pn - 1));
         return;
     }
   } else if(aa != nullptr && isLocal == false) {
@@ -3976,7 +3978,23 @@ void Executor::runFunctionAsMain(Function *f,
       }
     }
   }
-  
+  int maxGroupObj = 1;
+  if(aa != nullptr) {
+    maxGroupObj = aa->getMaxGroupedObjects();
+  }
+  for(int poolNum = 0; poolNum < maxGroupObj; poolNum++) {
+    void * heapSpace = mmap(NULL, 1024*60, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
+    if(heapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
+    int sbrkHeapSize = 0;
+    MemoryObject * sbrkMo;
+
+    sbrkMo = new MemoryObject((uint64_t)heapSpace, sbrkHeapSize, false, true, false, NULL, NULL);
+    sbrkMo->name = "sbrkMo";
+    ObjectState* os = new ObjectState(sbrkMo);
+    state->addressSpace.sbrkMos.push_back(sbrkMo);
+    //initialState.addressSpace.sbrkOses.push_back(os);
+    state->addressSpace.bindObject(sbrkMo, os);
+  }
   initializeGlobals(*state);
 
   processTree = new PTree(state);

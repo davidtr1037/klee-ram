@@ -104,11 +104,15 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
         pt->set(nid);
         disjointObjects.push_front(*pt);
     }
+//#define PRINT_OBJS
     for(auto& dob : disjointObjects) {
       llvm::dump(dob, errs());
-      //for(auto nid : dob) {
-      //  pag->getObject(nid)->getRefVal()->dump();
-      //}
+#ifdef PRINT_OBJS      
+      for(auto nid : dob) {
+        errs() << nid << " -> "  << pag->getObject(nid)->isConstantObj() << " is: ";
+        pag->getObject(nid)->getRefVal()->dump();
+      }
+#endif
     }
     errs() << "NUmber of dijoint objects: " << disjointObjects.size() << "\n";
 
@@ -118,7 +122,7 @@ int AAPass::getMaxGroupedObjects() {
     return disjointObjects.size();
 }
 void AAPass::printsPtsTo(const llvm::Value* V) {
-  assert(V && "Can-t print null ptrs");
+  assert(V && "Can't print null ptrs");
   PAG* pag = _pta->getPAG();
   NodeID node = pag->getValueNode(V);
   PointsTo& ptsTo = _pta->getPts(node);
@@ -128,7 +132,6 @@ void AAPass::printsPtsTo(const llvm::Value* V) {
   }
   errs() << "node: " << node << " -> ";
   llvm::dump(ptsTo, errs());
-                                                        
 }
 int AAPass::isNotAllone(const llvm::Value* V) {
     if(V == nullptr) return 0;
@@ -171,35 +174,3 @@ std::string kindTostring(GenericNode<PAGNode, PAGEdge>::GNodeK kind) {
     default: return " UNKOWN!!! ";
   }
 }
-/*
-void AAPass::getPointsTo(const Value* V) {
-    return ;
-    PAG* pag = _pta->getPAG();
-    NodeID node = pag->getValueNode(V);
-    PointsTo& ptsTo = _pta->getPts(node);
-     errs() << "Print all memobj \n";
-    for(auto& idToType : *pag) {
-        if(ObjPN* opn = dyn_cast<ObjPN>(idToType.second)) {
-
-//            errs() << "Node: " << idToType.first << " is a " << kindTostring(opn->getNodeKind())  << " of type " << opn->getMemObj()->isHeap() << "\n";
-        }
-    }
-    for(auto& idToType : *pag) {
-        if((idToType.second->getNodeKind() == PAGNode::PNODEK::DummyObjNode ||
-             idToType.second->getNodeKind() == PAGNode::PNODEK::GepObjNode ||
-             idToType.second->getNodeKind() == PAGNode::PNODEK::FIObjNode)
- && (idToType.second->hasValue() &&  _pta->alias(V, idToType.second->getValue()))
-            )
-//       if(idToType.second->getNodeKind() != PAGNode::PNODEK::ValNode)
-        errs() << idToType.first << " type: " <<  kindTostring(idToType.second->getNodeKind()) 
-        << " alias: " << (idToType.second->hasValue() ?  _pta->alias(V, idToType.second->getValue()) : 5434) << "\n";
-    }
-    //_pta->dumpPts(node, ptsTo);
-//    CPtSet& cpt = ((Andersen*)_pta)->getCondPointsTo(node);
-    errs() << "nodeID : " << node << " size : " << ptsTo.count() << " points to " << ptsTo.find_first() << " which poitns to\n" ;//cpts size: " << cpt.size() << " ";
-    llvm::dump(_pta->getPts(ptsTo.find_first()),errs()); 
-    llvm::dump(_pta->getRevPts(ptsTo.find_first()),errs()); //is pointed to
-
-
-}
-*/

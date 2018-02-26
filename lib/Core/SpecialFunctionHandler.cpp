@@ -257,6 +257,32 @@ SpecialFunctionHandler::readStringAtAddress(ExecutionState &state,
     return "";
   }
   bool res __attribute__ ((unused));
+  if(op.first->name == "sbrkMo") {
+      const MemoryObject *mo = op.first;
+      const ObjectState *os = op.second;
+      const unsigned padding = 4;
+      unsigned offset = address->getZExtValue() - mo->address - padding;
+          
+      ref<Expr> sizeRead = os->read(offset, padding*8);
+      ConstantExpr* offS = dyn_cast<ConstantExpr>(sizeRead);
+      assert(offS && "Size shouldn't be symbolic");
+      char *buf = new char[offS->getZExtValue()];
+      unsigned i;
+      for (i = 0; i < offS->getZExtValue() - 1; i++) {
+        ref<Expr> cur = os->read8(offset + padding + i);
+        cur = executor.toUnique(state, cur);
+        assert(isa<ConstantExpr>(cur) && 
+               "hit symbolic char while reading concrete string");
+        buf[i] = cast<ConstantExpr>(cur)->getZExtValue(8);
+//        printf("char at %i is %c\n", i, buf[i]);
+      }
+      buf[i] = 0;
+    
+      std::string result(buf);
+      delete[] buf;
+ //     errs() << "Returning " << result << "\n";
+      return result;
+  }
   assert(executor.solver->mustBeTrue(state, 
                                      EqExpr::create(address, 
                                                     op.first->getBaseExpr()),
@@ -432,7 +458,7 @@ void SpecialFunctionHandler::handleMalloc(ExecutionState &state,
   // XXX should type check args
   assert(arguments.size()==1 && "invalid number of arguments to malloc");
   if(SbrkMalloc) {
-    executor.executeSbrk(state, target, arguments[0],0);
+    executor.bindLocal(target,state,executor.executeSbrk(state,  arguments[0],0));
   } else
     executor.executeAlloc(state, arguments[0], false, target);
 }
@@ -685,7 +711,7 @@ void SpecialFunctionHandler::handleCalloc(ExecutionState &state,
   ref<Expr> size = MulExpr::create(arguments[0],
                                    arguments[1]);
   if(SbrkMalloc) {
-    executor.executeSbrk(state, target, size,0);
+    executor.bindLocal(target, state, executor.executeSbrk(state,  size,0));
   } else
   executor.executeAlloc(state, size, false, target, true);
 }
@@ -699,7 +725,7 @@ void SpecialFunctionHandler::handleRealloc(ExecutionState &state,
   ref<Expr> address = arguments[0];
   ref<Expr> size = arguments[1];
   if(SbrkMalloc) {
-    executor.executeSbrk(state, target, size,0);
+    executor.bindLocal(target, state, executor.executeSbrk(state,  size,0));
     return;
   }
 
@@ -748,7 +774,7 @@ void SpecialFunctionHandler::handleSbrk(ExecutionState &state,
   assert(arguments.size()==1 &&
          "invalid number of arguments to free");
 //  llvm::outs() << "in handle Sbrk " << arguments[0] << "\n";
-  executor.executeSbrk(state, target, arguments[0],0);
+  executor.bindLocal(target, state, executor.executeSbrk(state, arguments[0],0));
 
 }
 

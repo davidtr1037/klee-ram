@@ -17,6 +17,7 @@
 
 #include "klee/ExecutionState.h"
 #include "klee/Interpreter.h"
+#include "klee/Expr.h"
 #include "klee/Internal/Module/Cell.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
@@ -288,7 +289,7 @@ private:
                     ExactResolutionList &results,
                     const std::string &name);
 
-  void executeSbrk(ExecutionState &state, KInstruction *target, ref<Expr> increment, int poolNum) ;
+  ref<klee::ConstantExpr> executeSbrk(ExecutionState &state,  ref<Expr> increment, int poolNum) ;
        
 
   /// Allocate and bind a new object in a particular state. NOTE: This
