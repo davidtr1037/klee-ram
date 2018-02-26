@@ -104,12 +104,12 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
         pt->set(nid);
         disjointObjects.push_front(*pt);
     }
-//#define PRINT_OBJS
+#define PRINT_OBJS
     for(auto& dob : disjointObjects) {
       llvm::dump(dob, errs());
 #ifdef PRINT_OBJS      
       for(auto nid : dob) {
-        errs() << nid << " -> "  << pag->getObject(nid)->isConstantObj() << " is: ";
+        errs() << nid << " -> "  << pag->getObject(nid)->getRefVal() << " tainted: " << pag->getObject(nid)->getSymId() << " is dummy: " << isa<FIObjPN>(pag->getPAGNode(nid)) << " is: ";
         pag->getObject(nid)->getRefVal()->dump();
       }
 #endif
@@ -126,8 +126,9 @@ void AAPass::printsPtsTo(const llvm::Value* V) {
   PAG* pag = _pta->getPAG();
   NodeID node = pag->getValueNode(V);
   PointsTo& ptsTo = _pta->getPts(node);
+  ptsTo |= _pta->getRevPts(node);
   for(auto nid: ptsTo) {
-    errs() << "node: " << nid << " -> ";
+    errs() << "node: " << nid  << " " << pag->getObject(nid)->getRefVal() << " -> ";
     pag->getObject(nid)->getRefVal()->dump();
   }
   errs() << "node: " << node << " -> ";
