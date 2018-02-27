@@ -62,7 +62,7 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
           unsigned nodeId = idToType.first;
           PointsTo& ptsToOrIsPointedTo = _pta->getPts(nodeId); 
           ptsToOrIsPointedTo |= _pta->getRevPts(nodeId);
-          ptsToOrIsPointedTo &= memObjects;
+          //ptsToOrIsPointedTo &= memObjects;
           if(!ptsToOrIsPointedTo.empty()) {
 //            errs() << "Mem object " << nodeId << " " << opn->getValueName() << " same group as ";
             ptsToOrIsPointedTo.set(nodeId);
@@ -78,6 +78,14 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
         }
     }
     
+    //make all uniqueIds;
+    for(auto dob = disjointObjects.begin();  dob != disjointObjects.end(); dob++) {
+      for(auto nid : *dob) {
+          if(pag->getObject(nid) != nullptr) {
+              dob->set(pag->getObject(nid)->getSymId());
+          }
+      }
+    }
     int changes = 0;
     do {
       changes = 0;
@@ -96,21 +104,25 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
       errs() << "Completed loop with " << changes << " changes\n";
     } while(changes > 0);
 
-    for(auto& dob : disjointObjects) {
-        memObjects = memObjects - dob;
-    }
-    for(auto nid: memObjects) {
-        PointsTo *pt = new PointsTo();
-        pt->set(nid);
-        disjointObjects.push_front(*pt);
-    }
+    //don't need this if I don't filter by memory objects
+    //for(auto& dob : disjointObjects) {
+    //    memObjects = memObjects - dob;
+    //}
+    //for(auto nid: memObjects) {
+    //    PointsTo *pt = new PointsTo();
+    //    pt->set(nid);
+    //    disjointObjects.push_front(*pt);
+    //}
 #define PRINT_OBJS
     for(auto& dob : disjointObjects) {
       llvm::dump(dob, errs());
 #ifdef PRINT_OBJS      
       for(auto nid : dob) {
-        errs() << nid << " -> "  << pag->getObject(nid)->getRefVal() << " tainted: " << pag->getObject(nid)->getSymId() << " is dummy: " << isa<FIObjPN>(pag->getPAGNode(nid)) << " is: ";
+          if(nid == 0 || pag->getObject(nid) == nullptr ||  pag->getObject(nid)->getRefVal() == nullptr) continue;
+        errs() << nid << " -> "  << pag->getObject(nid)->getRefVal() << " tainted: " << pag->getObject(nid)->getSymId() << " is FIObjPN: " << isa<FIObjPN>(pag->getPAGNode(nid)) << " is: ";
+        if(!isa<Function>(pag->getObject(nid)->getRefVal()))
         pag->getObject(nid)->getRefVal()->dump();
+        else errs() << "\n";
       }
 #endif
     }
@@ -126,8 +138,9 @@ void AAPass::printsPtsTo(const llvm::Value* V) {
   PAG* pag = _pta->getPAG();
   NodeID node = pag->getValueNode(V);
   PointsTo& ptsTo = _pta->getPts(node);
-  ptsTo |= _pta->getRevPts(node);
+//  ptsTo |= _pta->getRevPts(node);
   for(auto nid: ptsTo) {
+    if(nid == 0 || pag->getObject(nid) == nullptr ||  pag->getObject(nid)->getRefVal() == nullptr) continue;
     errs() << "node: " << nid  << " " << pag->getObject(nid)->getRefVal() << " -> ";
     pag->getObject(nid)->getRefVal()->dump();
   }
@@ -142,7 +155,10 @@ int AAPass::isNotAllone(const llvm::Value* V) {
 //    ptsTo.set(node);
     int resultingGroup = 1;
     //what if it itnerescts with more than 1? can it?
+  errs() << "not alone node: " << node << " -> ";
+  llvm::dump(ptsTo, errs());
     for(auto& pts : disjointObjects) {
+        assert(pts.contains(ptsTo) == pts.intersects(ptsTo) && "There shouldn't be more elements in ptsTo");
         if(pts.contains(ptsTo)) return resultingGroup;
         resultingGroup++;
         

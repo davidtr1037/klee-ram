@@ -558,7 +558,6 @@ MemoryObject * Executor::addExternalObject(ExecutionState &state,
   return mo;
 }
 
-
 extern void *__dso_handle __attribute__ ((__weak__));
 
 void Executor::initializeGlobals(ExecutionState &state) {
@@ -3718,8 +3717,12 @@ void Executor::executeMemoryOperation(ExecutionState &state,
          const MemoryObject *mo = i->first;
          state.prevPC->inst->dump();
          if(aa != nullptr) {
-             errs() << "isNotALone: " << aa->isNotAllone(state.prevPC->inst) << " mo: " << mo << " " << mo->name << " addrs: " << mo->address << " size: " << mo->size <<  "\n";
-             aa->printsPtsTo(state.prevPC->inst);
+             Value * v = isWrite ? target->inst : dyn_cast<LoadInst>(state.prevPC->inst)->getPointerOperand();
+             errs() << "isNotALone: " 
+              << aa->isNotAllone(v) 
+              << " mo: " << mo << " " << mo->name << " addrs: " << mo->address << " size: " << mo->size 
+              <<  "\n";
+             aa->printsPtsTo(v);
          }
       }
  
