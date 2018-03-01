@@ -3813,6 +3813,9 @@ void Executor::executePartialMakeSymbolic(ExecutionState &state, const MemoryObj
     unsigned address = dyn_cast<ConstantExpr>(addressP)->getZExtValue();
     unsigned size = dyn_cast<ConstantExpr>(sizeP)->getZExtValue();
     unsigned address_obj_offset = address - mo->address;
+    errs() << "Inserting: " << name << " offset: " << address_obj_offset << " of size: " << size << "\n";
+    const_cast<MemoryObject*>(mo)->symbolicObjects[address_obj_offset] =  std::make_pair(size, name);
+    
 
     const Array* a = state.getSymbolic(mo);
     const ObjectState* prevOs = state.addressSpace.findObject(mo);
@@ -4130,8 +4133,21 @@ bool Executor::getSymbolicSolution(const ExecutionState &state,
     return false;
   }
   
-  for (unsigned i = 0; i != state.symbolics.size(); ++i)
-    res.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
+  for (unsigned i = 0; i != state.symbolics.size(); ++i) {
+    const MemoryObject* mo = state.symbolics[i].first;
+    errs() << mo->name << ": symObjSize: " << mo->symbolicObjects.size() << "\n"; 
+    if(mo->symbolicObjects.size() > 0) {
+        for(auto &addrToSizeName : mo->symbolicObjects) {
+            std::string name = addrToSizeName.second.second;
+            unsigned  size = addrToSizeName.second.first;
+            unsigned offset = addrToSizeName.first;
+            std::vector<unsigned char> vals(values[i].begin() + offset, values[i].begin() + offset + size);
+            errs() << "\t" << name << ": " << offset << " of size: " << size << "\n";
+            res.push_back(std::make_pair(name, vals));
+        }
+    } else 
+      res.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
+  }
   return true;
 }
 

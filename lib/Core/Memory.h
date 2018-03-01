@@ -19,6 +19,7 @@
 
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 namespace llvm {
   class Value;
@@ -51,6 +52,8 @@ private:
   mutable unsigned refCount;
 
 public:
+  //maps address (offset in the object) -> (size, name)
+  std::unordered_map<unsigned, std::pair<unsigned, std::string>> symbolicObjects;
   unsigned id;
   uint64_t address;
 

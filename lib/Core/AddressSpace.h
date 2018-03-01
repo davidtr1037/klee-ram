@@ -80,6 +80,7 @@ namespace klee {
             uniqIn++;
 
             mo = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
+            mo->symbolicObjects = sb->symbolicObjects;
             mo->name = sb->name + "_copy_" + std::to_string(uniqIn);
             ObjectState* os = new ObjectState(*ros, mo);
             assert(mo->freeSpace == NULL && "copying free space not implemnted yet");
