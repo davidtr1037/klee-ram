@@ -218,7 +218,7 @@ static void run_monitored(char *executable, int argc, char **argv) {
     do {
       res = waitpid(pid, &status, 0);
     } while (res < 0 && errno == EINTR);
-
+    printf("Here with status %d\n", status);
     if (res < 0) {
       perror("waitpid");
       _exit(66);
@@ -439,6 +439,7 @@ void klee_make_symbolic(void *addr, size_t nbytes, const char *name) {
     }
   } else {
     KTestObject *boo = &input->objects[obj_index];
+        fprintf(stderr, "Called make symbolic with %s %u %p\n", name, nbytes, addr);
 
     if (strcmp("model_version", name) == 0 &&
         strcmp("model_version", boo->name) != 0) {
@@ -494,5 +495,6 @@ void klee_mark_global(void *object) {
 
 static void __emit_error(const char *msg) {
   fprintf(stderr, "ERROR: %s\n", msg);
-  exit(1);
+  *(char*)0;
+//  exit(10);
 }

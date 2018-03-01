@@ -90,6 +90,7 @@
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <sys/mman.h>
 
@@ -3814,7 +3815,9 @@ void Executor::executePartialMakeSymbolic(ExecutionState &state, const MemoryObj
     unsigned size = dyn_cast<ConstantExpr>(sizeP)->getZExtValue();
     unsigned address_obj_offset = address - mo->address;
     errs() << "Inserting: " << name << " offset: " << address_obj_offset << " of size: " << size << "\n";
-    const_cast<MemoryObject*>(mo)->symbolicObjects[address_obj_offset] =  std::make_pair(size, name);
+    const_cast<MemoryObject*>(mo)->symbolicObjects.push_back(
+                                              std::make_pair(address_obj_offset, 
+                                                             std::make_pair(size, name)));
     
 
     const Array* a = state.getSymbolic(mo);
@@ -4014,7 +4017,9 @@ void Executor::runFunctionAsMain(Function *f,
     MemoryObject * sbrkMo;
 
     sbrkMo = new MemoryObject((uint64_t)heapSpace, sbrkHeapSize, false, true, false, NULL, NULL);
-    sbrkMo->name = "sbrkMo";
+    std::stringstream ss;
+    ss << "sbrkMo" << poolNum;
+    sbrkMo->name = ss.str();
     ObjectState* os = new ObjectState(sbrkMo);
     state->addressSpace.sbrkMos.push_back(sbrkMo);
     //initialState.addressSpace.sbrkOses.push_back(os);
@@ -4132,19 +4137,25 @@ bool Executor::getSymbolicSolution(const ExecutionState &state,
                              ConstantExpr::alloc(0, Expr::Bool));
     return false;
   }
-  
+ 
+  std::unordered_set<std::string> seenNames;
   for (unsigned i = 0; i != state.symbolics.size(); ++i) {
     const MemoryObject* mo = state.symbolics[i].first;
-    errs() << mo->name << ": symObjSize: " << mo->symbolicObjects.size() << "\n"; 
+    errs() << mo->name << ": symObjSize: " << mo->symbolicObjects.size() << " " << mo << "\n"; 
     if(mo->symbolicObjects.size() > 0) {
+        std::unordered_set<std::string> seenNamesLocal;
         for(auto &addrToSizeName : mo->symbolicObjects) {
             std::string name = addrToSizeName.second.second;
             unsigned  size = addrToSizeName.second.first;
             unsigned offset = addrToSizeName.first;
+            if(seenNames.count(name) > 0) continue;
+            seenNamesLocal.insert(name);
             std::vector<unsigned char> vals(values[i].begin() + offset, values[i].begin() + offset + size);
             errs() << "\t" << name << ": " << offset << " of size: " << size << "\n";
             res.push_back(std::make_pair(name, vals));
         }
+        seenNames.insert(seenNamesLocal.begin(), seenNamesLocal.end());
+
     } else 
       res.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
   }

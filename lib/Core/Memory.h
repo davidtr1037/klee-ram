@@ -19,7 +19,6 @@
 
 #include <vector>
 #include <string>
-#include <unordered_map>
 
 namespace llvm {
   class Value;
@@ -53,7 +52,7 @@ private:
 
 public:
   //maps address (offset in the object) -> (size, name)
-  std::unordered_map<unsigned, std::pair<unsigned, std::string>> symbolicObjects;
+  std::vector<std::pair<unsigned, std::pair<unsigned, std::string>>> symbolicObjects;
   unsigned id;
   uint64_t address;
 
