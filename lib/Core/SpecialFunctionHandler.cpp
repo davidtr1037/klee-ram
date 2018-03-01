@@ -257,7 +257,8 @@ SpecialFunctionHandler::readStringAtAddress(ExecutionState &state,
     return "";
   }
   bool res __attribute__ ((unused));
-  if(op.first->name == "sbrkMo") {
+  errs() << "Readding " << op.first->name << " at: " << op.first->address << " of size: " << op.first->size << "\n";
+  if(op.first->name.find("sbrkMo") == 0) {
       const MemoryObject *mo = op.first;
       const ObjectState *os = op.second;
       const unsigned padding = 4;

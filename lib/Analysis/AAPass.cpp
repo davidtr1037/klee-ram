@@ -8,21 +8,25 @@
 
 using namespace llvm;
 
-char AAPass::ID = 0;
+char SVFAAPass::ID = 0;
 
-static RegisterPass<AAPass> WHOLEPROGRAMPA("AAPass",
+static RegisterPass<SVFAAPass> WHOLEPROGRAMPA("SVFAAPass",
         "Whole Program Pointer Analysis Pass");
 
-AAPass::~AAPass() {
+SVFAAPass::~SVFAAPass() {
     delete _pta;
 }
 
-bool AAPass::runOnModule(llvm::Module& module) {
+bool SVFAAPass::isModelingConstants() {
+    return modelConstantsIndividually;
+}
+
+bool SVFAAPass::runOnModule(llvm::Module& module) {
     runPointerAnalysis(module, type);
     return false;
 }
 
-void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
+void SVFAAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
     switch (kind) {
     case PointerAnalysis::Andersen_WPA:
         _pta = new Andersen();
@@ -46,6 +50,7 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
 
 
     _pta->quiet = true;
+    _pta->modelConstants = modelConstantsIndividually;
     _pta->analyze(module);
 
     PAG* pag = _pta->getPAG();
@@ -93,7 +98,6 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
             PointsTo &dob = *it;
             for(auto it1  = disjointObjects.begin(); it1 != disjointObjects.end(); it1++) {
                 if(it != it1 && it->intersects(*it1)) {
-                    errs() << "itneresects!!\n";
                     dob |= *it1;
                     it1 = disjointObjects.erase(it1);
                     changes++;
@@ -113,7 +117,7 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
     //    pt->set(nid);
     //    disjointObjects.push_front(*pt);
     //}
-#define PRINT_OBJS
+//#define PRINT_OBJS
     for(auto& dob : disjointObjects) {
       llvm::dump(dob, errs());
 #ifdef PRINT_OBJS      
@@ -126,14 +130,14 @@ void AAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
       }
 #endif
     }
-    errs() << "NUmber of dijoint objects: " << disjointObjects.size() << "\n";
+    errs() << "Number of dijoint objects: " << disjointObjects.size() << "\n";
 
 }
 
-int AAPass::getMaxGroupedObjects() {
+int SVFAAPass::getMaxGroupedObjects() {
     return disjointObjects.size();
 }
-void AAPass::printsPtsTo(const llvm::Value* V) {
+void SVFAAPass::printsPtsTo(const llvm::Value* V) {
   assert(V && "Can't print null ptrs");
   PAG* pag = _pta->getPAG();
   NodeID node = pag->getValueNode(V);
@@ -147,7 +151,7 @@ void AAPass::printsPtsTo(const llvm::Value* V) {
   errs() << "node: " << node << " -> ";
   llvm::dump(ptsTo, errs());
 }
-int AAPass::isNotAllone(const llvm::Value* V) {
+int SVFAAPass::isNotAllone(const llvm::Value* V) {
     if(V == nullptr) return 0;
     PAG* pag = _pta->getPAG();
     NodeID node = pag->getValueNode(V);
@@ -155,8 +159,8 @@ int AAPass::isNotAllone(const llvm::Value* V) {
 //    ptsTo.set(node);
     int resultingGroup = 1;
     //what if it itnerescts with more than 1? can it?
-  errs() << "not alone node: " << node << " -> ";
-  llvm::dump(ptsTo, errs());
+//  errs() << "not alone node: " << node << " -> ";
+//  llvm::dump(ptsTo, errs());
     for(auto& pts : disjointObjects) {
         assert(pts.contains(ptsTo) == pts.intersects(ptsTo) && "There shouldn't be more elements in ptsTo");
         if(pts.contains(ptsTo)) return resultingGroup;
@@ -166,7 +170,7 @@ int AAPass::isNotAllone(const llvm::Value* V) {
 
     return 0;
 }
-llvm::AliasAnalysis::AliasResult AAPass::alias(const Value* V1, const Value* V2) {
+llvm::AliasAnalysis::AliasResult SVFAAPass::alias(const Value* V1, const Value* V2) {
     llvm::AliasAnalysis::AliasResult result = MayAlias;
 
     PAG* pag = _pta->getPAG();

@@ -326,9 +326,19 @@ cl::opt<bool>
                "(default=8192). Disable check with 0."),
       cl::init(8192));
   cl::opt<bool>
-  PointerAnalysisMem("pts",
-            cl::desc("Use pointer analysis"),
-            cl::init(true));
+  UseSVFPointerAnalysis("pts",
+            cl::desc("Use SVF pointer analysis"),
+            cl::init(false));
+
+  cl::opt<bool>
+  FlatMem("flat-memory",
+            cl::desc("Groups objects based on pointer analysis"),
+            cl::init(false));
+
+  cl::opt<bool>
+  FlatConstants("flat-constants",
+            cl::desc("Put constants in flat memory"),
+            cl::init(false));
 }
 
 
@@ -455,13 +465,13 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
   kmodule->optimiseAndPrepare(opts, preservedFunctions);
 
   // 4.) Manifest the module
-  aa = nullptr;
-  if(PointerAnalysisMem) {
-      aa = new AAPass();
-
-      aa->setPAType(PointerAnalysis::Andersen_WPA);
-      aa->setPAType(PointerAnalysis::AndersenWaveDiff_WPA);
-//      aa->setPAType(PointerAnalysis::FSSPARSE_WPA);
+  if(UseSVFPointerAnalysis) {
+      auto SVFaa = new SVFAAPass(FlatConstants);
+      SVFaa->setPAType(PointerAnalysis::Andersen_WPA);
+      SVFaa->setPAType(PointerAnalysis::AndersenWaveDiff_WPA);
+      aa = SVFaa;
+  } else {
+      aa = new DummyAAPass();
   }
 
   kmodule->manifest(interpreterHandler, StatsTracker::useStatistics(), aa);
@@ -490,7 +500,7 @@ Executor::~Executor() {
   delete specialFunctionHandler;
   delete statsTracker;
   delete solver;
-  if(aa != nullptr) delete aa;
+  delete aa;
   while(!timers.empty()) {
     delete timers.back();
     timers.pop_back();
@@ -687,11 +697,13 @@ void Executor::initializeGlobals(ExecutionState &state) {
     } else {
       Type *ty = i->getType()->getElementType();
       uint64_t size = kmodule->targetData->getTypeStoreSize(ty);
-      if(aa != nullptr) {
+      if(FlatConstants && FlatMem 
+          && i->getType()->getElementType()->isArrayTy()
+          && dyn_cast<ArrayType>(i->getType()->getElementType())->getElementType()->isIntegerTy()) {
           int pn = aa->isNotAllone(i);
-          aa->printsPtsTo(i);
-          //errs() << pn << "\n";
-          errs() << i->getName() << " pn: " << pn << "\n";
+          //aa->printsPtsTo(i);
+          //errs() << i->getName() << " pn: " << pn << "\n";
+          //i->getType()->getElementType()->dump();
           if(pn > 0) {
             ref<klee::ConstantExpr> addr = executeSbrk(state, klee::ConstantExpr::create(size, 32), pn - 1);
             globalAddresses.insert(std::make_pair(v, addr));
@@ -700,7 +712,11 @@ void Executor::initializeGlobals(ExecutionState &state) {
             assert(os);
             ObjectState *wos = state.addressSpace.getWriteable(mo, os);
             unsigned offset = addr->getZExtValue() - mo->address;
-            initializeGlobalObject(state, wos, i->getInitializer(), offset);
+            if(i->hasInitializer())
+              initializeGlobalObject(state, wos, i->getInitializer(), offset);
+            else {
+
+            }
           }
       } else {
           MemoryObject *mo = memory->allocate(size, /*isLocal=*/false,
@@ -3411,7 +3427,7 @@ void Executor::executeAlloc(ExecutionState &state,
                             const ObjectState *reallocFrom,
                             size_t allocationAlignment) {
 
-  if(aa != nullptr && reallocFrom == nullptr && isLocal == false) {
+  if(FlatMem && reallocFrom == nullptr && isLocal == false) {
 //    errs() << "Alloc at  " << target->printFileLine() << "\n";
     if(int pn = aa->isNotAllone(target->inst)) {
 //        errs() << "Goes to SBRK! pool num: " << pn -1 << " ";
@@ -3419,7 +3435,7 @@ void Executor::executeAlloc(ExecutionState &state,
         bindLocal(target, state, executeSbrk(state, size, pn - 1));
         return;
     }
-  } else if(aa != nullptr && isLocal == false) {
+  } else if(FlatMem && isLocal == false) {
     if(int pn = aa->isNotAllone(target->inst)) {
  //       errs() << "Realloc of sbrk object pn: " << pn << "  ...bailing\n";
         return bindLocal(target, state, ConstantExpr::create(0, Context::get().getPointerWidth()));
@@ -3552,7 +3568,7 @@ void Executor::executeFree(ExecutionState &state,
     for (Executor::ExactResolutionList::iterator it = rl.begin(), 
            ie = rl.end(); it != ie; ++it) {
       const MemoryObject *mo = it->first.first;
-      if(aa && aa->isNotAllone(mo->allocSite)) {
+      if(FlatMem && aa->isNotAllone(mo->allocSite)) {
           MemoryObject *wmo = const_cast<MemoryObject*>(mo);
           const ObjectState* os = it->first.second;
           if(wmo->freeSpace == NULL) wmo->freeSpace = new FreeOffsets();
@@ -3568,7 +3584,13 @@ void Executor::executeFree(ExecutionState &state,
           unsigned offset = offE->getZExtValue() - padding;
           
           ref<Expr> sizeRead = os->read(offset, padding*8);
+          sizeRead = toUnique(state,sizeRead);
           ConstantExpr* offS = dyn_cast<ConstantExpr>(sizeRead);
+          if(offS == nullptr) {
+              klee_warning("Size is symbolic, shouldn't happen, probably means an overflow");
+              sizeRead->dump();
+              return;
+          }
           assert(offS && "Size shouldn't be symbolic");
           wmo->freeSpace->addFreeSpace(offset,offS->getZExtValue() + padding);
           wmo->freeSpace->totalFreeSpace();
@@ -3709,14 +3731,14 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   if(rl.size() > 1)  {
       errs() << "Multiple resolution! " << rl.size() << " in state " << &state << "\n";
       klee_warning("Multiple addresses resolution %d ... forking!\n", rl.size());
-      if(aa != nullptr) {
+      if(FlatMem) {
           state.dumpStack(errs());
           address->dump();
       }
       for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
          const MemoryObject *mo = i->first;
          state.prevPC->inst->dump();
-         if(aa != nullptr) {
+         if(FlatMem) {
              Value * v = isWrite ? target->inst : dyn_cast<LoadInst>(state.prevPC->inst)->getPointerOperand();
              errs() << "isNotALone: " 
               << aa->isNotAllone(v) 
@@ -3981,10 +4003,7 @@ void Executor::runFunctionAsMain(Function *f,
       }
     }
   }
-  int maxGroupObj = 1;
-  if(aa != nullptr) {
-    maxGroupObj = aa->getMaxGroupedObjects();
-  }
+  int  maxGroupObj = aa->getMaxGroupedObjects();
   for(int poolNum = 0; poolNum < maxGroupObj; poolNum++) {
     void * heapSpace = mmap(NULL, 1024*60, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
     if(heapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
