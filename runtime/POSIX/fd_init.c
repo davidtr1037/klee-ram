@@ -19,6 +19,8 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <unistd.h>
+#include <fcntl.h>
+
 
 
 exe_file_system_t __exe_fs;
@@ -108,7 +110,7 @@ static unsigned __sym_uint32(const char *name) {
 			 (file offset is always incremented)
    max_failures: maximum number of system call failures */
 void klee_init_fds(unsigned n_files, unsigned file_length,
-                   unsigned stdin_length, int sym_stdout_flag,
+                   unsigned long long stdin_length, int sym_stdout_flag,
                    int save_all_writes_flag, unsigned max_failures) {
   unsigned k;
   char name[7] = "?-data";
@@ -120,13 +122,51 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
   __exe_fs.sym_files = malloc(sizeof(*__exe_fs.sym_files) * n_files);
   for (k=0; k < n_files; k++) {
     name[0] = 'A' + k;
+#define PARTIAL_MAKEFILE
+#ifdef PARTIAL_MAKEFILE
+    if(k == 0) {
+    FILE *f;
+    char buffer[500];
+    int filedesc = open("/data/Random/benchmarks/bin/make.input", O_RDONLY);
+    printf("file desc %d\n", filedesc);
+    file_length = read(filedesc, buffer, 500);
+    buffer[file_length + 1] = 0;
+    printf("Populating A %d\n", file_length);
     __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
+    for(int i = 0; i < file_length; i++) {
+      if(buffer[i] == '?') { printf("Skipping %d\n", i); continue; }
+      __exe_fs.sym_files[k].contents[i] = buffer[i];
+    }
+   stat64("/data/Random/benchmarks/bin/make.input",__exe_fs.sym_files[k].stat);
+   } else
+      __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
+#elif
+    __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
+#endif
+
   }
   
   /* setting symbolic stdin */
   if (stdin_length) {
+    char *fileName = stdin_length > 100000 ? (char *)stdin_length : 0;
+
+    char buffer[500];
+    printf("Filename %p\n", fileName);
+    if(fileName) {
+        printf("Opening %s\n", fileName);
+        int filedesc = open(fileName, O_RDONLY);
+        stdin_length = read(filedesc, buffer, 500);
+        printf("Populating stdin with %d\n", stdin_length);
+    } 
     __exe_fs.sym_stdin = malloc(sizeof(*__exe_fs.sym_stdin));
     __create_new_dfile(__exe_fs.sym_stdin, stdin_length, "stdin", &s);
+    if(fileName) {
+        printf("Cocnrfetiyng back stdin\n");
+        for(int i = 0; i < stdin_length; i++) {
+          if(buffer[i] == '?') { printf("Skipping %d\n", i); continue; }
+          __exe_fs.sym_stdin->contents[i] = buffer[i];
+        }
+    }
     __exe_env.fds[0].dfile = __exe_fs.sym_stdin;
   }
   else __exe_fs.sym_stdin = NULL;

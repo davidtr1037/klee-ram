@@ -55,6 +55,7 @@ public:
   std::vector<std::pair<unsigned, std::pair<unsigned, std::string>>> symbolicObjects;
   unsigned id;
   uint64_t address;
+  int pn;
 
   /// size in bytes
   unsigned size;
@@ -95,6 +96,7 @@ public:
       isFixed(true),
       freeSpace(NULL),
       parent(NULL),
+      pn(-1),
       allocSite(0) {
   }
 
@@ -113,6 +115,7 @@ public:
       isFixed(_isFixed),
       isUserSpecified(false),
       parent(_parent), 
+      pn(-1),
       allocSite(_allocSite) {
   }
 

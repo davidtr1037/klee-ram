@@ -43,6 +43,8 @@ namespace klee {
         ++valIt;
       }
     }
+
+    bool isStillValid();
     
     ref<Expr> evaluate(const Array *mo, unsigned index) const;
     ref<Expr> evaluate(ref<Expr> e);

@@ -206,7 +206,7 @@ bool CexCachingSolver::lookupAssignment(const Query &query,
   }
 
   bool found = searchForAssignment(key, result);
-  if (found)
+  if (found) 
     ++stats::queryCexCacheHits;
   else ++stats::queryCexCacheMisses;
     
@@ -215,8 +215,16 @@ bool CexCachingSolver::lookupAssignment(const Query &query,
 
 bool CexCachingSolver::getAssignment(const Query& query, Assignment *&result) {
   KeyType key;
-  if (lookupAssignment(query, key, result))
-    return true;
+  if (lookupAssignment(query, key, result)) {
+    if(result == nullptr) return true;
+    if(result->isStillValid())
+      return true;
+    else {
+        assignmentsTable.erase(result);
+        bool succ = cache.remove(key);
+        llvm::errs() << "removing assingment " << succ << "\n";
+    }
+  }
 
   std::vector<const Array*> objects;
   findSymbolicObjects(key.begin(), key.end(), objects);

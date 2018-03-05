@@ -388,6 +388,7 @@ void calculateArrayReferences(const IndependentElementSet & ie,
   }
   for(std::set<const Array *>::iterator it = thisSeen.begin(); it != thisSeen.end();
       it ++){
+//      errs() << "Pusinh back array " << (*it)->name << "  of size " << (*it)->size << "\n";
     returnVector.push_back(*it);
   }
 }
@@ -501,7 +502,7 @@ bool IndependentSolver::computeInitialValues(const Query& query,
     std::vector<std::vector<unsigned char> > tempValues;
     if (!solver->impl->computeInitialValues(Query(tmp, ConstantExpr::alloc(0, Expr::Bool)),
                                             arraysInFactor, tempValues, hasSolution)){
-      values.clear();
+ //     values.clear();
       delete factors;
       return false;
     } else if (!hasSolution){
@@ -517,6 +518,7 @@ bool IndependentSolver::computeInitialValues(const Query& query,
           // so we need to place the answers to the new query into the right
           // spot while avoiding the undetermined values also in the array
           std::vector<unsigned char> * tempPtr = &retMap[arraysInFactor[i]];
+//          errs() << arraysInFactor[i]->name << " of size " << arraysInFactor[i]->size <<  " tempPtr size: " << tempPtr->size() << " tempValues size: " << tempValues[i].size() << "\n";
           assert(tempPtr->size() == tempValues[i].size() &&
                  "we're talking about the same array here");
           ::DenseSet<unsigned> * ds = &(it->elements[arraysInFactor[i]]);
@@ -526,6 +528,7 @@ bool IndependentSolver::computeInitialValues(const Query& query,
           }
         } else {
           // Dump all the new values into the array
+//          errs() << "Inserting " <<  arraysInFactor[i]->name << " of size " << arraysInFactor[i]->size <<  " tempValues size: " << tempValues[i].size() << "\n";
           retMap[arraysInFactor[i]] = tempValues[i];
         }
       }

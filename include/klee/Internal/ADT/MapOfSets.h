@@ -39,6 +39,7 @@ namespace klee {
     void insert(const std::set<K> &set, const V &value);
 
     V *lookup(const std::set<K> &set);
+    bool remove(const std::set<K> &set);
 
     iterator begin();
     iterator end();
@@ -212,6 +213,26 @@ namespace klee {
       return 0;
     }
   }
+
+  template<class K, class V>
+  bool MapOfSets<K,V>::remove(const std::set<K> &set) {
+    Node *n = &root;
+    for (typename std::set<K>::const_iterator it = set.begin(), ie = set.end();
+         it != ie; ++it) {
+      typename Node::children_ty::iterator kit = n->children.find(*it);
+      if (kit==n->children.end()) {
+        return false;
+      } else {
+        if(kit->second.isEndOfSet) {
+            llvm::errs() << "Removing form cex!";
+            n->children.erase(*it);
+            return true;
+        } else
+          n = &kit->second;
+      }
+    }
+  }
+
 
   template<class K, class V>
   typename MapOfSets<K,V>::iterator 

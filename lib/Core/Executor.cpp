@@ -3365,6 +3365,7 @@ ObjectState *Executor::bindObjectInState(ExecutionState &state,
 
 //returns the address
 ref<klee::ConstantExpr> Executor::executeSbrk(ExecutionState &state, ref<Expr> increment_param, int poolNum) {
+   increment_param  = toUnique(state,increment_param);
   ConstantExpr *ce_increment = dyn_cast<ConstantExpr>(increment_param);
 
   if(!ce_increment) {
@@ -3407,8 +3408,10 @@ ref<klee::ConstantExpr> Executor::executeSbrk(ExecutionState &state, ref<Expr> i
   if(freeOffset >= 0) { //handle case where we found a free gap
       //fprintf(stderr,"%p %p %d os: %p found space at %u for %u\n",&state, mo, poolNum, prev_os, freeOffset, increment);
      prev_os->realloc(mo->size);
-      prev_os->write32(freeOffset, increment - padding);
-          return ConstantExpr::create(mo->address + freeOffset + padding, Context::get().getPointerWidth());
+     prev_os->write32(freeOffset, increment - padding);
+//     for(unsigned i = freeOffset + padding; i < freeOffset + padding + increment; i++)
+//          prev_os->write(i, ConstantExpr::create(0, Expr::Int8));
+     return ConstantExpr::create(mo->address + freeOffset + padding, Context::get().getPointerWidth());
 
   } else {
       mo->size += increment;
@@ -3416,6 +3419,8 @@ ref<klee::ConstantExpr> Executor::executeSbrk(ExecutionState &state, ref<Expr> i
       assert(mo == prev_os->getObject() && "Reallocing incosnitnet object");
       prev_os->realloc(mo->size);
       prev_os->write32(prev_size, increment - padding);
+//      for(unsigned i = prev_size + padding; i < prev_size + padding + increment; i++)
+//          prev_os->write(i, ConstantExpr::create(0, Expr::Int8));
       return ConstantExpr::create(mo->address + prev_size + padding, Context::get().getPointerWidth());
   }
 }
@@ -3572,12 +3577,13 @@ void Executor::executeFree(ExecutionState &state,
       if(FlatMem && aa->isNotAllone(mo->allocSite)) {
           MemoryObject *wmo = const_cast<MemoryObject*>(mo);
           const ObjectState* os = it->first.second;
-          if(wmo->freeSpace == NULL) wmo->freeSpace = new FreeOffsets();
+         if(wmo->freeSpace == NULL) wmo->freeSpace = new FreeOffsets();
           ref<Expr>  offrE = mo->getOffsetExpr(address);
 
           const unsigned padding = 4;
           ConstantExpr* offE = dyn_cast<ConstantExpr>(offrE);
           if(offE == nullptr) {
+              state.dumpStack(errs());
                klee_warning("Ignoring symbolic free");
 //               offrE->dump();
                return;
@@ -3731,6 +3737,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   
   if(rl.size() > 1)  {
       errs() << "Multiple resolution! " << rl.size() << " in state " << &state << "\n";
+      state.dumpStack(errs());
       klee_warning("Multiple addresses resolution %d ... forking!\n", rl.size());
       if(FlatMem) {
           state.dumpStack(errs());
@@ -3801,6 +3808,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
     if (incomplete) {
       terminateStateEarly(*unbound, "Query timed out (resolve).");
     } else {
+        unbound->dumpStack(errs());
       terminateStateOnError(*unbound, "memory error: out of bound pointer", Ptr,
                             NULL, getAddressInfo(*unbound, address));
     }
@@ -3826,7 +3834,11 @@ void Executor::executePartialMakeSymbolic(ExecutionState &state, const MemoryObj
       if(a->size == mo->size) {
           //klee_error("TODO: mark offsets as symbolic");
           for(unsigned i = address_obj_offset; i < address_obj_offset + size; i++)
-              state.addressSpace.getWriteable(mo, prevOs)->makeSymbolic(i);
+               state.addressSpace.getWriteable(mo, prevOs)->makeSymbolic(i);
+    state.addSymbolic(mo, a);
+    int pn = mo->pn;
+    state.partial_symbolics[pn].push_back(std::make_pair(address_obj_offset, std::make_pair(size,name)));
+//    errs() << "Pushing " << name << " to " << pn << "\n";
           return;
       } else {
           klee_error(" arrays differ in size a.size: %u, mo.size %u, os.size: %u, should be handled by OS.realloc"
@@ -3835,6 +3847,9 @@ void Executor::executePartialMakeSymbolic(ExecutionState &state, const MemoryObj
     }
     ObjectState *prevOsCpy = new ObjectState(*prevOs);
     executeMakeSymbolic(state,mo, name);
+    int pn = mo->pn;
+    state.partial_symbolics[pn].push_back(std::make_pair(address_obj_offset, std::make_pair(size,name)));
+    errs() << "Pushing " << name << " to " << pn << "\n";
     ObjectState* newOs = state.addressSpace.getWriteable(mo, state.addressSpace.findObject(mo));
     assert(prevOs != newOs && "Object state doesn't change with mk sym");
     for(unsigned i = 0; i < mo->size; i++) {
@@ -4011,7 +4026,7 @@ void Executor::runFunctionAsMain(Function *f,
   }
   int  maxGroupObj = aa->getMaxGroupedObjects();
   for(int poolNum = 0; poolNum < maxGroupObj; poolNum++) {
-    void * heapSpace = mmap(NULL, 1024*60, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
+    void * heapSpace = mmap(NULL, 1024*200, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
     if(heapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
     int sbrkHeapSize = 0;
     MemoryObject * sbrkMo;
@@ -4020,6 +4035,7 @@ void Executor::runFunctionAsMain(Function *f,
     std::stringstream ss;
     ss << "sbrkMo" << poolNum;
     sbrkMo->name = ss.str();
+    sbrkMo->pn = poolNum;
     ObjectState* os = new ObjectState(sbrkMo);
     state->addressSpace.sbrkMos.push_back(sbrkMo);
     //initialState.addressSpace.sbrkOses.push_back(os);
@@ -4138,23 +4154,28 @@ bool Executor::getSymbolicSolution(const ExecutionState &state,
     return false;
   }
  
-  std::unordered_set<std::string> seenNames;
+  //errs() << "====== new test case ======\n";
+  std::unordered_map<int, int> seenPartials;
   for (unsigned i = 0; i != state.symbolics.size(); ++i) {
     const MemoryObject* mo = state.symbolics[i].first;
-    errs() << mo->name << ": symObjSize: " << mo->symbolicObjects.size() << " " << mo << "\n"; 
-    if(mo->symbolicObjects.size() > 0) {
-        std::unordered_set<std::string> seenNamesLocal;
-        for(auto &addrToSizeName : mo->symbolicObjects) {
-            std::string name = addrToSizeName.second.second;
-            unsigned  size = addrToSizeName.second.first;
-            unsigned offset = addrToSizeName.first;
-            if(seenNames.count(name) > 0) continue;
-            seenNamesLocal.insert(name);
-            std::vector<unsigned char> vals(values[i].begin() + offset, values[i].begin() + offset + size);
-            errs() << "\t" << name << ": " << offset << " of size: " << size << "\n";
-            res.push_back(std::make_pair(name, vals));
-        }
-        seenNames.insert(seenNamesLocal.begin(), seenNamesLocal.end());
+    int pn = mo->pn;
+   // errs() << mo->name << ": symObjSize: " << mo->symbolicObjects.size() << " " << mo  << " pn: " << pn << "\n"; 
+    if(pn > 0) {
+      if(seenPartials.count(pn) == 0) seenPartials[pn] = 0; 
+    
+
+//      errs() << "seen partials " << seenPartials[pn] << " vec size: " << state.partial_symbolics.size() << "\n";
+      std::vector<std::pair<unsigned, std::pair<unsigned, std::string>>> v = state.partial_symbolics.at(pn);
+//      errs() << "Got v " << v.size() << " getting " << seenPartials[pn] << "\n";
+      std::pair<unsigned, std::pair<unsigned, std::string>> addrToSizeName = v.at(seenPartials[pn]);
+      std::string name = addrToSizeName.second.second;
+      unsigned  size = addrToSizeName.second.first;
+      unsigned offset = addrToSizeName.first;
+      std::vector<unsigned char> vals(values[i].begin() + offset, values[i].begin() + offset + size);
+ //     errs() << "\t" << name << ": " << offset << " of size: " << size << "\n";
+      seenPartials[pn] = seenPartials[pn] + 1;
+      res.push_back(std::make_pair(name, vals));
+ //     errs() << "seen partials " << seenPartials[pn] << " vec size: " << v.size() << "\n";
 
     } else 
       res.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));

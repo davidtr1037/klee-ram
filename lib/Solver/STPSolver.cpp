@@ -193,6 +193,7 @@ runAndGetCex(::VC vc, STPBuilder *builder, ::VCExpr q,
          it != ie; ++it) {
       const Array *array = *it;
       std::vector<unsigned char> data;
+      llvm::errs() << "Reading " << array->name << ": " << array->size << "\n";
 
       data.reserve(array->size);
       for (unsigned offset = 0; offset < array->size; offset++) {

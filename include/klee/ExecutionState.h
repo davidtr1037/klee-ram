@@ -24,6 +24,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <unordered_map>
 
 namespace klee {
 class Array;
@@ -140,6 +141,7 @@ public:
   //
   // FIXME: Move to a shared list structure (not critical).
   std::vector<std::pair<const MemoryObject *, const Array *> > symbolics;
+  std::unordered_map<int, std::vector<std::pair<unsigned, std::pair<unsigned, std::string>>>> partial_symbolics;
 
   /// @brief Set of used array names for this state.  Used to avoid collisions.
   std::set<std::string> arrayNames;
