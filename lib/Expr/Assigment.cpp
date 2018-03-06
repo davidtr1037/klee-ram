@@ -11,7 +11,7 @@ namespace klee {
 
 bool Assignment::isStillValid() {
     for(auto& arrayValues : bindings) {
-        if(arrayValues.first->size != arrayValues.second.size()) {
+        if(arrayValues.first->size > arrayValues.second.size()) {
             llvm::errs() << this << " Invalid assignment of " << arrayValues.first->name << " with size: " << arrayValues.first->size << " bound to size: " << arrayValues.second.size() << "!\n";
             return false;
         }
