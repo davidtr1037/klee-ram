@@ -494,7 +494,6 @@ public:
   /// a symbolic array. If non-empty, this size of this array is equivalent to
   /// the array size.
   std::vector<ref<ConstantExpr> > constantValues;
-  void resize(unsigned newSize) ;
 
 private:
   unsigned hashValue;

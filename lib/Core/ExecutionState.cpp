@@ -167,6 +167,17 @@ const Array* ExecutionState::getSymbolic(const MemoryObject*mo) {
     return nullptr;
 }
 
+void ExecutionState::replaceSymbolic(const MemoryObject *mo, const Array *array) { 
+  for(int i = 0; i < symbolics.size(); i++) {
+      if(symbolics[i].first == mo) {
+          symbolics[i].second = array;
+          return;
+      }
+  }
+//  errs() << "Failed to find mo: " << mo->name << " size: " << mo->size << " array: " << array->name << " size: " << array->size <<"\n";
+//  assert(false && "Shouldn't replace an objects that isn't symbolic");
+}
+
 void ExecutionState::addSymbolic(const MemoryObject *mo, const Array *array) { 
   mo->refCount++;
   symbolics.push_back(std::make_pair(mo, array));

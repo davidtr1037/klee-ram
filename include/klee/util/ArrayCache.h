@@ -67,6 +67,8 @@ public:
                            Expr::Width _domain = Expr::Int32,
                            Expr::Width _range = Expr::Int8);
 
+  const Array *CreateResizedArray(const Array *a, uint64_t _size);
+
 private:
   typedef unordered_set<const Array *, klee::ArrayHashFn,
                         klee::EquivArrayCmpFn> ArrayHashMap;

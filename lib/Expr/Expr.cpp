@@ -512,20 +512,6 @@ Array::Array(const std::string &_name, uint64_t _size,
 Array::~Array() {
 }
 
-void Array::resize(unsigned newSize){
-//   assert(size <= newSize && "Resizing to smaller arrayis not supported");
-//   if(size == newSize) return;
-   if(isConstantArray()) {
-      constantValues.resize(newSize);
-      for(unsigned i = size; i < newSize; i++) {
-          constantValues[i] = ConstantExpr::create(0, Expr::Int8);
-      }
-      
-   }
-   size = newSize;
-}
-
-
 unsigned Array::computeHash() {
   unsigned res = 0;
   for (unsigned i = 0, e = name.size(); i != e; ++i)

@@ -207,6 +207,7 @@ public:
   ~ObjectState();
 
   const MemoryObject *getObject() const { return object; }
+  const Array *getArray() const { return updates.root; }
 
   void realloc(unsigned int newSize);
   void setReadOnly(bool ro) { readOnly = ro; }

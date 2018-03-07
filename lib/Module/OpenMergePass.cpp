@@ -98,7 +98,6 @@ bool RemoveReallocPass::runOnFunction(Function &F) {
 
               std::vector<Value*> mallocArgs;
               mallocArgs.push_back(size);
-              errs() << mallocFun << "\n";
               CallInst* mallocedAddr = CallInst::Create(mallocFun,mallocArgs, "", ThenTerm);
               std::vector<Value*> gepIdx;
               gepIdx.push_back(ConstantInt::getSigned(IntegerType::get(F.getContext(), 8), -1));

@@ -245,7 +245,8 @@ void ObjectState::realloc(unsigned int newSize) {
           }
           if(updates.root != nullptr) {
              //printf("Updates.root size: %u, name %s\n", updates.root->size, updates.root->name.c_str());
-            const_cast<Array*>(updates.root)->resize(newSize);
+             const Array* newRoot = getArrayCache()->CreateResizedArray(updates.root, newSize);
+             updates = UpdateList(newRoot, updates.head);
           }
           delete[] concreteStore;
           concreteStore = store;

@@ -179,6 +179,7 @@ public:
 
   const Array* getSymbolic(const MemoryObject*mo);
   void addSymbolic(const MemoryObject *mo, const Array *array);
+  void replaceSymbolic(const MemoryObject *mo, const Array *array);
   void addConstraint(ref<Expr> e) { constraints.addConstraint(e); }
 
   bool merge(const ExecutionState &b);

@@ -3405,24 +3405,23 @@ ref<klee::ConstantExpr> Executor::executeSbrk(ExecutionState &state, ref<Expr> i
   ObjectState* prev_os = state.addressSpace.getWriteable(mo,ros);
   assert(prev_os->object == mo && "os doesn't belong to the memory object");
 
+  ref<ConstantExpr> ret;
   if(freeOffset >= 0) { //handle case where we found a free gap
-      //fprintf(stderr,"%p %p %d os: %p found space at %u for %u\n",&state, mo, poolNum, prev_os, freeOffset, increment);
      prev_os->realloc(mo->size);
      prev_os->write32(freeOffset, increment - padding);
-//     for(unsigned i = freeOffset + padding; i < freeOffset + padding + increment; i++)
-//          prev_os->write(i, ConstantExpr::create(0, Expr::Int8));
-     return ConstantExpr::create(mo->address + freeOffset + padding, Context::get().getPointerWidth());
+     ret = ConstantExpr::create(mo->address + freeOffset + padding, Context::get().getPointerWidth());
 
   } else {
       mo->size += increment;
-//      fprintf(stderr,"%p %p  %d incrementing by %u to %u freeSpace %p\n", &state, mo, poolNum,increment, mo->size);
       assert(mo == prev_os->getObject() && "Reallocing incosnitnet object");
       prev_os->realloc(mo->size);
       prev_os->write32(prev_size, increment - padding);
-//      for(unsigned i = prev_size + padding; i < prev_size + padding + increment; i++)
-//          prev_os->write(i, ConstantExpr::create(0, Expr::Int8));
-      return ConstantExpr::create(mo->address + prev_size + padding, Context::get().getPointerWidth());
+      ret = ConstantExpr::create(mo->address + prev_size + padding, Context::get().getPointerWidth());
   }
+  if(prev_os->getArray()) {
+    state.replaceSymbolic(mo, prev_os->getArray());
+  }
+   return ret;
 }
 
 void Executor::executeAlloc(ExecutionState &state,
@@ -3453,6 +3452,10 @@ void Executor::executeAlloc(ExecutionState &state,
     const llvm::Value *allocSite = state.prevPC->inst;
     if (allocationAlignment == 0) {
       allocationAlignment = getAllocationAlignment(allocSite);
+    }
+    if(CE->getZExtValue() > 1000000) {
+        state.dumpStack(errs());
+        assert(false);
     }
     MemoryObject *mo =
         memory->allocate(CE->getZExtValue(), isLocal, /*isGlobal=*/false,

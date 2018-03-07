@@ -16,6 +16,24 @@ ArrayCache::~ArrayCache() {
   }
 }
 
+const Array *ArrayCache::CreateResizedArray(const Array *a, uint64_t _size) {
+    std::string name = a->name;
+    Expr::Width _domain = a->domain;
+    Expr::Width _range = a->range;
+    if(a->isSymbolicArray()) return CreateArray(name, _size,0,0, _domain, _range);
+
+    Array *array = new Array(name, _size, 0,0, _domain, _range);
+    array->constantValues = a->constantValues;
+    array->constantValues.resize(_size);
+    ref<ConstantExpr> zero = ConstantExpr::create(0, _range);
+    for(int i = a->size; i < _size; i++) {
+        array->constantValues[i] = zero;
+    }
+    assert(array->isConstantArray());
+    concreteArrays.push_back(array); // For deletion later
+    return array;
+
+}
 const Array *
 ArrayCache::CreateArray(const std::string &_name, uint64_t _size,
                         const ref<ConstantExpr> *constantValuesBegin,
