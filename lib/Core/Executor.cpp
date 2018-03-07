@@ -332,6 +332,12 @@ cl::opt<bool>
             cl::init(false));
 
   cl::opt<bool>
+  UseFlowAAs("flow-aa",
+            cl::desc("Use flow sensitive analysis"),
+            cl::init(false));
+
+
+  cl::opt<bool>
   FlatMem("flat-memory",
             cl::desc("Groups objects based on pointer analysis"),
             cl::init(false));
@@ -470,6 +476,9 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
       auto SVFaa = new SVFAAPass(FlatConstants);
       SVFaa->setPAType(PointerAnalysis::Andersen_WPA);
       SVFaa->setPAType(PointerAnalysis::AndersenWaveDiff_WPA);
+      if(UseFlowAAs) {
+        SVFaa->setPAType(PointerAnalysis::FSSPARSE_WPA);
+      }
       aa = SVFaa;
   } else {
       aa = new DummyAAPass();
