@@ -17,7 +17,7 @@ ArrayCache::~ArrayCache() {
 }
 
 const Array *ArrayCache::CreateResizedArray(const Array *a, uint64_t _size) {
-    std::string name = a->name;
+    std::string name = a->name + std::to_string(_size);
     Expr::Width _domain = a->domain;
     Expr::Width _range = a->range;
     if(a->isSymbolicArray()) return CreateArray(name, _size,0,0, _domain, _range);

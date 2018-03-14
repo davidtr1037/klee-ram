@@ -163,8 +163,17 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
     if(fileName) {
         printf("Cocnrfetiyng back stdin\n");
         for(int i = 0; i < stdin_length; i++) {
-          if(buffer[i] == '?') { printf("Skipping %d\n", i); continue; }
+          if(buffer[i] == '?') { 
+              klee_assume((__exe_fs.sym_stdin->contents[i] >= 'A') & (__exe_fs.sym_stdin->contents[i] <= 'z'));
+             // klee_assume(buffer[i] != '`');
+              //klee_assume(buffer[i] < 'z');
+              printf("Skipping %d\n", i); 
+              continue; 
+          }
           __exe_fs.sym_stdin->contents[i] = buffer[i];
+          struct stat64 s;
+          fstat64(0, &s);
+          memcpy(__exe_fs.sym_stdin->stat, &s, sizeof(struct stat64));
         }
     }
     __exe_env.fds[0].dfile = __exe_fs.sym_stdin;

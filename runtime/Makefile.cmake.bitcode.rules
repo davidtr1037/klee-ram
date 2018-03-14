@@ -38,7 +38,7 @@ endif
 #
 # Handle build mode flags
 ifeq ($(IS_RELEASE),1)
-LLVMCC.Flags += -O2
+LLVMCC.Flags += -O0
 else
 LLVMCC.Flags += $(O0OPT)
 endif

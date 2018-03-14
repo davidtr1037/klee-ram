@@ -718,6 +718,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
             ref<klee::ConstantExpr> addr = executeSbrk(state, klee::ConstantExpr::create(size, 32), pn - 1);
             globalAddresses.insert(std::make_pair(v, addr));
             MemoryObject* mo = state.addressSpace.sbrkMos[pn -1];
+            assert(mo != nullptr && "Unitinitalzed memory pool, porbably need to init here");
             const ObjectState *os = state.addressSpace.findObject(mo);
             assert(os);
             ObjectState *wos = state.addressSpace.getWriteable(mo, os);
@@ -1128,12 +1129,19 @@ const Cell& Executor::eval(KInstruction *ki, unsigned index,
          "Invalid operand to eval(), not a value or constant!");
 
   // Determine if this is a constant or not.
+//    errs() << " looking up " << vnumber << "\n";
   if (vnumber < 0) {
     unsigned index = -vnumber - 2;
     return kmodule->constantTable[index];
   } else {
     unsigned index = vnumber;
-    StackFrame &sf = state.stack.back();
+   StackFrame &sf = state.stack.back();
+//     if(index == 23) {
+//        errs() << "Returning cell value 23\n";
+//        ki->inst->print(errs());
+//        errs() <<  " Ref count " << sf.locals[index].value->refCount << "\n";
+//        errs() <<  " value " << sf.locals[index].value.get() << "\n";
+//    }
     return sf.locals[index];
   }
 }
@@ -2124,6 +2132,12 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
     case ICmpInst::ICMP_EQ: {
       ref<Expr> left = eval(ki, 0, state).value;
       ref<Expr> right = eval(ki, 1, state).value;
+      if(left.get() == nullptr) {
+      state.dumpStack(errs());
+      left->dump();
+        ki->inst->print(errs());
+      right->dump();
+      }
       ref<Expr> result = EqExpr::create(left, right);
       bindLocal(ki, state, result);
       break;
@@ -2822,6 +2836,16 @@ void Executor::bindModuleConstants() {
   for (unsigned i=0; i<kmodule->constants.size(); ++i) {
     Cell &c = kmodule->constantTable[i];
     c.value = evalConstant(kmodule->constants[i]);
+
+    if(i == 6) {
+    errs() << "At index " << i << " inserted " << c.value.get() << " \n";
+    c.value->dump();
+    kmodule->constants[i]->print(errs());
+    }
+    if(c.value.get() == nullptr) {
+      errs() << i << " is at nullptr!\n";
+      assert(false);
+    }
   }
 }
 
@@ -3385,6 +3409,23 @@ ref<klee::ConstantExpr> Executor::executeSbrk(ExecutionState &state, ref<Expr> i
   const uint64_t padding = 4;
 
   MemoryObject *mo = state.addressSpace.sbrkMos[poolNum];
+  if(mo == nullptr) {
+    void * heapSpace = mmap(NULL, 1024*200, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
+    if(heapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
+    int sbrkHeapSize = 0;
+    MemoryObject * sbrkMo;
+
+    sbrkMo = new MemoryObject((uint64_t)heapSpace, sbrkHeapSize, false, true, false, NULL, NULL);
+    std::stringstream ss;
+    ss << "sbrkMo" << poolNum;
+    sbrkMo->name = ss.str();
+    sbrkMo->pn = poolNum;
+    ObjectState* os = new ObjectState(sbrkMo);
+    state.addressSpace.bindObject(sbrkMo, os);
+    state.addressSpace.sbrkMos[poolNum] = sbrkMo;
+    mo = sbrkMo;
+  }
+  assert(mo != nullptr && "Unitinalized memory pool");
   uint64_t increment = ce_increment->getZExtValue() + padding;
   //errs() << " size: " << increment << "\n";
   if(increment == 0) {
@@ -3838,37 +3879,21 @@ void Executor::executePartialMakeSymbolic(ExecutionState &state, const MemoryObj
     const_cast<MemoryObject*>(mo)->symbolicObjects.push_back(
                                               std::make_pair(address_obj_offset, 
                                                              std::make_pair(size, name)));
-    
+    unsigned id = 0;
+    std::string uniqueName = name;
+    while (!state.arrayNames.insert(uniqueName).second) {
+      uniqueName = "partial_" + name + "_" + llvm::utostr(++id);
+    }
+    const Array *array = arrayCache.CreateArray(uniqueName, size);
+    state.addSymbolic(mo, array);
 
-    const Array* a = state.getSymbolic(mo);
-    const ObjectState* prevOs = state.addressSpace.findObject(mo);
-    if(a != nullptr) {
-      if(a->size == mo->size) {
-          //klee_error("TODO: mark offsets as symbolic");
-          for(unsigned i = address_obj_offset; i < address_obj_offset + size; i++)
-               state.addressSpace.getWriteable(mo, prevOs)->makeSymbolic(i);
-    state.addSymbolic(mo, a);
-    int pn = mo->pn;
-    state.partial_symbolics[pn].push_back(std::make_pair(address_obj_offset, std::make_pair(size,name)));
-//    errs() << "Pushing " << name << " to " << pn << "\n";
-          return;
-      } else {
-          klee_error(" arrays differ in size a.size: %u, mo.size %u, os.size: %u, should be handled by OS.realloc"
-                      , a->size, mo->size, prevOs->size);
-      }
+    const ObjectState* ros = state.addressSpace.findObject(mo);
+    ObjectState* os = state.addressSpace.getWriteable(mo, ros);
+    auto ul = UpdateList(array, 0);
+
+    for(unsigned i = address_obj_offset; i < address_obj_offset + size; i++) {
+          os->write(i, ReadExpr::create(ul, ConstantExpr::create(i - address_obj_offset, Expr::Int32)));
     }
-    ObjectState *prevOsCpy = new ObjectState(*prevOs);
-    executeMakeSymbolic(state,mo, name);
-    int pn = mo->pn;
-    state.partial_symbolics[pn].push_back(std::make_pair(address_obj_offset, std::make_pair(size,name)));
-    errs() << "Pushing " << name << " to " << pn << "\n";
-    ObjectState* newOs = state.addressSpace.getWriteable(mo, state.addressSpace.findObject(mo));
-    assert(prevOs != newOs && "Object state doesn't change with mk sym");
-    for(unsigned i = 0; i < mo->size; i++) {
-        if(i < address_obj_offset || i >= address_obj_offset + size)
-          newOs->write(i, prevOsCpy->read8(i));
-    }
-    delete prevOsCpy;
 }
 
 void Executor::executeMakeSymbolic(ExecutionState &state, 
@@ -4038,20 +4063,21 @@ void Executor::runFunctionAsMain(Function *f,
   }
   int  maxGroupObj = aa->getMaxGroupedObjects();
   for(int poolNum = 0; poolNum < maxGroupObj; poolNum++) {
-    void * heapSpace = mmap(NULL, 1024*200, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
-    if(heapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
-    int sbrkHeapSize = 0;
-    MemoryObject * sbrkMo;
-
-    sbrkMo = new MemoryObject((uint64_t)heapSpace, sbrkHeapSize, false, true, false, NULL, NULL);
-    std::stringstream ss;
-    ss << "sbrkMo" << poolNum;
-    sbrkMo->name = ss.str();
-    sbrkMo->pn = poolNum;
-    ObjectState* os = new ObjectState(sbrkMo);
-    state->addressSpace.sbrkMos.push_back(sbrkMo);
-    //initialState.addressSpace.sbrkOses.push_back(os);
-    state->addressSpace.bindObject(sbrkMo, os);
+    state->addressSpace.sbrkMos.push_back(nullptr);
+//    void * heapSpace = mmap(NULL, 1024*200, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0); 
+//    if(heapSpace == MAP_FAILED) klee_error("Couldn't mmap sbrk heap space");
+//    int sbrkHeapSize = 0;
+//    MemoryObject * sbrkMo;
+//
+//    sbrkMo = new MemoryObject((uint64_t)heapSpace, sbrkHeapSize, false, true, false, NULL, NULL);
+//    std::stringstream ss;
+//    ss << "sbrkMo" << poolNum;
+//    sbrkMo->name = ss.str();
+//    sbrkMo->pn = poolNum;
+//    ObjectState* os = new ObjectState(sbrkMo);
+//    state->addressSpace.sbrkMos.push_back(sbrkMo);
+//    //initialState.addressSpace.sbrkOses.push_back(os);
+//    state->addressSpace.bindObject(sbrkMo, os);
   }
   initializeGlobals(*state);
 
@@ -4166,31 +4192,8 @@ bool Executor::getSymbolicSolution(const ExecutionState &state,
     return false;
   }
  
-  //errs() << "====== new test case ======\n";
-  std::unordered_map<int, int> seenPartials;
   for (unsigned i = 0; i != state.symbolics.size(); ++i) {
-    const MemoryObject* mo = state.symbolics[i].first;
-    int pn = mo->pn;
-   // errs() << mo->name << ": symObjSize: " << mo->symbolicObjects.size() << " " << mo  << " pn: " << pn << "\n"; 
-    if(pn > 0) {
-      if(seenPartials.count(pn) == 0) seenPartials[pn] = 0; 
-    
-
-//      errs() << "seen partials " << seenPartials[pn] << " vec size: " << state.partial_symbolics.size() << "\n";
-      std::vector<std::pair<unsigned, std::pair<unsigned, std::string>>> v = state.partial_symbolics.at(pn);
-//      errs() << "Got v " << v.size() << " getting " << seenPartials[pn] << "\n";
-      std::pair<unsigned, std::pair<unsigned, std::string>> addrToSizeName = v.at(seenPartials[pn]);
-      std::string name = addrToSizeName.second.second;
-      unsigned  size = addrToSizeName.second.first;
-      unsigned offset = addrToSizeName.first;
-      std::vector<unsigned char> vals(values[i].begin() + offset, values[i].begin() + offset + size);
- //     errs() << "\t" << name << ": " << offset << " of size: " << size << "\n";
-      seenPartials[pn] = seenPartials[pn] + 1;
-      res.push_back(std::make_pair(name, vals));
- //     errs() << "seen partials " << seenPartials[pn] << " vec size: " << v.size() << "\n";
-
-    } else 
-      res.push_back(std::make_pair(state.symbolics[i].first->name, values[i]));
+     res.push_back(std::make_pair(state.symbolics[i].second->name, values[i]));
   }
   return true;
 }

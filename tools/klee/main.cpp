@@ -514,6 +514,15 @@ void KleeHandler::processTestCase(const ExecutionState &state,
 
     if (m_numGeneratedTests == StopAfterNTests)
       m_interpreter->setHaltExecution(true);
+      
+    llvm::raw_ostream *f = openTestFile("poolSize", id);
+    int poolNum = 0;
+    for(auto& smo : state.addressSpace.sbrkMos) {
+        poolNum++;
+        if(smo != nullptr)
+        *f << poolNum << ": " << smo->size << "\n";
+    }
+    delete f;
 
     if (WriteTestInfo) {
       time::Span elapsed_time(time::getWallTime() - start_time);

@@ -74,18 +74,20 @@ namespace klee {
     }
     AddressSpace(const AddressSpace &b) : cowKey(++b.cowKey), objects(b.objects), sbrkMos(b.sbrkMos.size()) { 
         for(unsigned i = 0; i < sbrkMos.size(); i++) {
-            MemoryObject* mo,* sb = b.sbrkMos[i];
-            const ObjectState* ros = findObject(sb);
-            static int uniqIn = 0;
-            uniqIn++;
+            MemoryObject* mo=nullptr,* sb = b.sbrkMos[i];
+            if(sb != nullptr) {
+                const ObjectState* ros = findObject(sb);
+                static int uniqIn = 0;
+                uniqIn++;
 
-            mo = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
-            mo->pn = sb->pn;
-            mo->symbolicObjects = sb->symbolicObjects;
-            mo->name = sb->name + "_copy_" + std::to_string(uniqIn);
-            ObjectState* os = new ObjectState(*ros, mo);
-            assert(mo->freeSpace == NULL && "copying free space not implemnted yet");
-            bindObject(mo, os);
+                mo = new MemoryObject(sb->address, sb->size, false, true, false, sb->allocSite, sb->parent);
+                mo->pn = sb->pn;
+                mo->symbolicObjects = sb->symbolicObjects;
+                mo->name = sb->name + "_copy_" + std::to_string(uniqIn);
+                ObjectState* os = new ObjectState(*ros, mo);
+                assert(mo->freeSpace == NULL && "copying free space not implemnted yet");
+                bindObject(mo, os);
+            }
             sbrkMos[i] = mo;
 
         }

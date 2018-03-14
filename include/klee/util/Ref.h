@@ -18,6 +18,7 @@ using llvm::dyn_cast;
 using llvm::dyn_cast_or_null;
 
 #include <assert.h>
+#include <stdio.h>
 #include <iosfwd> // FIXME: Remove this!!!
 
 namespace llvm {

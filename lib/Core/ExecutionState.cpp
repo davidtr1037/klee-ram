@@ -125,7 +125,6 @@ ExecutionState::ExecutionState(const ExecutionState& state):
     arrayNames(state.arrayNames),
     openMergeStack(state.openMergeStack),
     steppedInstructions(state.steppedInstructions),
-    partial_symbolics(state.partial_symbolics),
     needToClose(state.needToClose)
 {
   for (unsigned int i=0; i<symbolics.size(); i++)

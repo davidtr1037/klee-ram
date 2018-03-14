@@ -278,6 +278,7 @@ const UpdateList &ObjectState::getUpdates() const {
       Contents[i] = ConstantExpr::create(0, Expr::Int8);
 
     // Pull off as many concrete writes as we can.
+    std::vector<unsigned> skippedIndices;
     unsigned Begin = 0, End = Writes.size();
     for (; Begin != End; ++Begin) {
       // Push concrete writes into the constant array.
@@ -286,8 +287,10 @@ const UpdateList &ObjectState::getUpdates() const {
         break;
 
       ConstantExpr *Value = dyn_cast<ConstantExpr>(Writes[Begin].second);
-      if (!Value)
-        break;
+      if (!Value) {
+        skippedIndices.push_back(Begin);
+        continue;
+      }
 
       Contents[Index->getZExtValue()] = Value;
     }
@@ -297,6 +300,10 @@ const UpdateList &ObjectState::getUpdates() const {
         "const_arr" + llvm::utostr(++id), size, &Contents[0],
         &Contents[0] + Contents.size());
     updates = UpdateList(array, 0);
+
+    for(unsigned B : skippedIndices) {
+      updates.extend(Writes[B].first, Writes[B].second);
+    }
 
     // Apply the remaining (non-constant) writes.
     for (; Begin != End; ++Begin)
@@ -343,11 +350,7 @@ void ObjectState::makeSymbolic() {
   }
 }
 
-void ObjectState::makeSymbolic(unsigned i) {
-    markByteSymbolic(i);
-    setKnownSymbolic(i, 0);
-    markByteFlushed(i);
-}
+
 void ObjectState::initializeToZero() {
   makeConcrete();
   memset(concreteStore, 0, size);

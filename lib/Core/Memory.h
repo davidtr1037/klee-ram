@@ -196,7 +196,6 @@ public:
   /// contents. The initial contents are undefined, it is the callers
   /// responsibility to initialize the object contents appropriately.
   ObjectState(const MemoryObject *mo);
-  void makeSymbolic(unsigned offset);
 
   /// Create a new object state for the given memory object with symbolic
   /// contents.
