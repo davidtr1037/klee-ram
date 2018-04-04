@@ -346,6 +346,12 @@ cl::opt<bool>
   FlatConstants("flat-constants",
             cl::desc("Put constants in flat memory"),
             cl::init(false));
+
+  cl::opt<unsigned>
+  PoolThreshold("pool-threshold",
+           cl::desc("Spill into other pools after threshold"),
+           cl::init(10000));
+ 
 }
 
 
@@ -3462,6 +3468,9 @@ ref<klee::ConstantExpr> Executor::executeSbrk(ExecutionState &state, ref<Expr> i
      ret = ConstantExpr::create(mo->address + freeOffset + padding, Context::get().getPointerWidth());
 
   } else {
+      if(mo->size > PoolThreshold && poolNum < state.addressSpace.sbrkMos.size() - 1 ) {
+          return executeSbrk(state, increment_param, poolNum + 1);
+      }
       mo->size += increment;
       assert(mo == prev_os->getObject() && "Reallocing incosnitnet object");
       prev_os->realloc(mo->size);
