@@ -3437,6 +3437,11 @@ ref<klee::ConstantExpr> Executor::executeSbrk(ExecutionState &state, ref<Expr> i
   if(increment == 0) {
     return ConstantExpr::create(0, Context::get().getPointerWidth());
   }
+  if(increment > PoolThreshold) {
+      errs() << "Allocation bigger than pool threshold " << increment << "\n";
+      state.prevPC->inst->dump();
+      state.dumpStack(errs());
+  }
   if(increment > 200000) {
     errs() << "inc is: " << increment << "\n";
     terminateStateOnError(state, "Negative or big arguments to sbrk are not supported",
@@ -3468,7 +3473,8 @@ ref<klee::ConstantExpr> Executor::executeSbrk(ExecutionState &state, ref<Expr> i
      ret = ConstantExpr::create(mo->address + freeOffset + padding, Context::get().getPointerWidth());
 
   } else {
-      if(mo->size > PoolThreshold && poolNum < state.addressSpace.sbrkMos.size() - 1 ) {
+      if(mo->size > PoolThreshold && poolNum < (state.addressSpace.sbrkMos.size() - 1) ) {
+          errs() << poolNum << " too big: " << mo->size << " going next\n";
           return executeSbrk(state, increment_param, poolNum + 1);
       }
       mo->size += increment;
@@ -3801,14 +3807,14 @@ void Executor::executeMemoryOperation(ExecutionState &state,
       errs() << "Multiple resolution! " << rl.size() << " in state " << &state << "\n";
       state.dumpStack(errs());
       klee_warning("Multiple addresses resolution %d ... forking!\n", rl.size());
-      if(FlatMem) {
+      if(FlatMem && false) {
           state.dumpStack(errs());
           address->dump();
       }
       for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
          const MemoryObject *mo = i->first;
          state.prevPC->inst->dump();
-         if(FlatMem) {
+         if(FlatMem && false) {
              Value * v = isWrite ? target->inst : dyn_cast<LoadInst>(state.prevPC->inst)->getPointerOperand();
              errs() << "isNotALone: " 
               << aa->isNotAllone(v) 
