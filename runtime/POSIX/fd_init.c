@@ -127,20 +127,21 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
     if(k == 0) {
     FILE *f;
     char buffer[500];
-    int filedesc = open("/data/Random/benchmarks/bin/make.input", O_RDONLY);
+    int i;
+    int filedesc = open("/data/double-deref/doublederef-benchmarks/bin/make.input", O_RDONLY);
     printf("file desc %d\n", filedesc);
     file_length = read(filedesc, buffer, 500);
     buffer[file_length + 1] = 0;
     printf("Populating A %d\n", file_length);
     __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
-    for(int i = 0; i < file_length; i++) {
+    for(i = 0; i < file_length; i++) {
       if(buffer[i] == '?') { printf("Skipping %d\n", i); continue; }
       __exe_fs.sym_files[k].contents[i] = buffer[i];
     }
-   stat64("/data/Random/benchmarks/bin/make.input",__exe_fs.sym_files[k].stat);
+   stat64("/data/double-deref/doublederef-benchmarks/bin/make.input",__exe_fs.sym_files[k].stat);
    } else
       __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
-#elif
+#else
     __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
 #endif
 
