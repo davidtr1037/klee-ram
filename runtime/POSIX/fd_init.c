@@ -162,7 +162,8 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
     __create_new_dfile(__exe_fs.sym_stdin, stdin_length, "stdin", &s);
     if(fileName) {
         printf("Cocnrfetiyng back stdin\n");
-        for(int i = 0; i < stdin_length; i++) {
+        int i;
+        for(i = 0; i < stdin_length; i++) {
           if(buffer[i] == '?') { 
               klee_assume((__exe_fs.sym_stdin->contents[i] >= 'A') & (__exe_fs.sym_stdin->contents[i] <= 'z'));
              // klee_assume(buffer[i] != '`');
