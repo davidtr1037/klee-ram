@@ -2722,18 +2722,18 @@ void Executor::executeInstruction(ExecutionState &state, KInstruction *ki) {
   }
 
   if(MergeMRes && state.needToClose != nullptr) {
-    i->print(errs());
+  //  i->print(errs());
     if(state.needToClose == i) {
-      errs() << " Closing!";
-      state.pc->printFileLine(errs());
-      errs() << "\n\n";
+   //   errs() << " Closing!";
+   //   state.pc->printFileLine(errs());
+   //   errs() << "\n\n";
       state.openMergeStack.back()->addClosedState(&state, i);
       state.openMergeStack.pop_back();
       state.needToClose = nullptr;
     } else { 
-    errs() << " Skipping! ";
-    state.pc->printFileLine(errs());
-    errs() << "\n";
+  //  errs() << " Skipping! ";
+  //  state.pc->printFileLine(errs());
+  //  errs() << "\n";
     }
   }
 }
@@ -3813,7 +3813,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
       }
       for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
          const MemoryObject *mo = i->first;
-         state.prevPC->inst->dump();
+//         state.prevPC->inst->dump();
          if(FlatMem && false) {
              Value * v = isWrite ? target->inst : dyn_cast<LoadInst>(state.prevPC->inst)->getPointerOperand();
              errs() << "isNotALone: " 
@@ -3832,10 +3832,10 @@ void Executor::executeMemoryOperation(ExecutionState &state,
     auto it = target->inst->getParent()->rbegin();
     it++;
     state.needToClose = &*it;
-    errs() << "Open ";
-    state.pc->printFileLine(errs());
-    state.needToClose->print(errs());
-    errs() << "\n";
+//    errs() << "Open ";
+//    state.pc->printFileLine(errs());
+//    state.needToClose->print(errs());
+//    errs() << "\n";
   }
   if(MergeRL && rl.size() > 1) {
       state.addressSpace.mergeResolution(rl, memory);
