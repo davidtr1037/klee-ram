@@ -504,11 +504,12 @@ ref<Expr> ObjectState::read8(ref<Expr> offset) const {
   flushRangeForRead(base, size);
 
   if (size>4096) {
-    std::string allocInfo;
-    object->getAllocInfo(allocInfo);
-    klee_warning_once((void*)size,"flushing %d bytes on read, may be slow and/or crash: %s", 
-                      size,
-                      allocInfo.c_str());
+    klee_warning_once((void*)size,"flushing %d bytes on read, may be slow and/or crash", size) ;
+//    std::string allocInfo;
+//    object->getAllocInfo(allocInfo); //This is very expensive and this paths is quite hot
+//    klee_warning_once((void*)size,"flushing %d bytes on read, may be slow and/or crash: %s", 
+//                      size,
+//                      allocInfo.c_str());
   }
   
   return ReadExpr::create(getUpdates(), ZExtExpr::create(offset, Expr::Int32));
