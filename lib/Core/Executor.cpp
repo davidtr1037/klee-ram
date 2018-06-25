@@ -3481,6 +3481,7 @@ ref<klee::ConstantExpr> Executor::executeSbrk(ExecutionState &state, ref<Expr> i
       assert(mo == prev_os->getObject() && "Reallocing incosnitnet object");
       prev_os->realloc(mo->size);
       prev_os->write32(prev_size, increment - padding);
+      volatile void * hack = malloc(increment);  // HACK to keep memory usage consistend with vanila KLEE.
       ret = ConstantExpr::create(mo->address + prev_size + padding, Context::get().getPointerWidth());
   }
   if(prev_os->getArray()) {
