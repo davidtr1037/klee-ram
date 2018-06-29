@@ -4,9 +4,11 @@ Debug/
 Debug+Asserts/
 Output/
 *.swp
+.*project
+tags
 
 # commonly used as cmake build directory
-/build
+/build*
 
 cscope.*
 *~
