@@ -66,11 +66,11 @@ void SVFAAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
         if(ObjPN* opn = dyn_cast<ObjPN>(idToType.second)) {
           unsigned nodeId = idToType.first;
           PointsTo& ptsToOrIsPointedTo = _pta->getPts(nodeId); 
-          ptsToOrIsPointedTo |= _pta->getRevPts(nodeId);
-          //ptsToOrIsPointedTo &= memObjects;
+//          ptsToOrIsPointedTo |= _pta->getRevPts(nodeId);
+//          ptsToOrIsPointedTo &= memObjects;
           if(!ptsToOrIsPointedTo.empty()) {
 //            errs() << "Mem object " << nodeId << " " << opn->getValueName() << " same group as ";
-            ptsToOrIsPointedTo.set(nodeId);
+//            ptsToOrIsPointedTo.set(nodeId);
             auto foundElem = std::find_if(disjointObjects.begin(), disjointObjects.end(),
               [&ptsToOrIsPointedTo](const PointsTo& e)  
                   {return e.intersects(ptsToOrIsPointedTo);});
