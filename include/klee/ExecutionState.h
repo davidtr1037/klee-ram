@@ -154,7 +154,6 @@ public:
 
   // The numbers of times this state has run through Executor::stepInstruction
   std::uint64_t steppedInstructions;
-  bool needToClose;
   llvm::Instruction* needToClose;
 
 private:

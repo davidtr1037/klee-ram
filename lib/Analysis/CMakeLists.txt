@@ -24,8 +24,10 @@ else()
   list(APPEND LLVM_COMPONENTS jit engine)
 endif()
 
-find_library(SVF_LIB libLLVMSvf.a HINTS ${SVF_ROOT_DIR}/buildProfile/lib /opt/svf/lib)
-find_library(CUDD_LIB libLLVMCudd.a HINTS ${SVF_ROOT_DIR}/buildProfile/lib/CUDD /opt/svf/lib)
+#find_library(SVF_LIB libLLVMSvf.a HINTS ${SVF_ROOT_DIR}/build/lib /opt/svf/lib)
+find_library(SVF_LIB Svf.so HINTS ${SVF_ROOT_DIR}/build/lib /opt/svf/lib)
+#find_library(CUDD_LIB libLLVMCudd.a HINTS ${SVF_ROOT_DIR}/build/lib/CUDD /opt/svf/lib)
+find_library(CUDD_LIB Cudd.so HINTS ${SVF_ROOT_DIR}/build/lib/CUDD /opt/svf/lib)
 
 klee_get_llvm_libs(LLVM_LIBS ${LLVM_COMPONENTS})
 target_link_libraries(kleeAnalysis PUBLIC

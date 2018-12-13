@@ -45,6 +45,8 @@ namespace klee {
   public:
     virtual ~KInstruction();
     std::string getSourceLocation() const;
+    void printFileLine(llvm::raw_ostream &debugFile) const;
+    std::string printFileLine() const;
 
   };
 

@@ -40,6 +40,9 @@ void SVFAAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
     case PointerAnalysis::AndersenWaveDiff_WPA:
         _pta = new AndersenWaveDiff();
         break;
+    case PointerAnalysis::AndersenWaveDiffWithType_WPA:
+        _pta = new AndersenWaveDiffWithType();
+         break;
     case PointerAnalysis::FSSPARSE_WPA:
         _pta = new FlowSensitive();
         break;
@@ -49,9 +52,12 @@ void SVFAAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
     }
 
 
-    _pta->quiet = true;
-    _pta->modelConstants = modelConstantsIndividually;
-    _pta->analyze(module);
+//    _pta->quiet = true;
+//    _pta->modelConstants = modelConstantsIndividually;
+
+    //need to keep this around becauase otherwise module will be deleted
+    auto svfModule = new SVFModule(&module);
+    _pta->analyze(*svfModule);
 
     PAG* pag = _pta->getPAG();
     PointsTo memObjects;
@@ -59,8 +65,8 @@ void SVFAAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
         if(isa<ObjPN>(idToType.second) && !pag->getObject(idToType.first)->isFunction()  )
             memObjects.set(idToType.first);
     }
-    errs() << "All mem objects: ";
-    llvm::dump(memObjects, errs());
+    //errs() << "All mem objects: ";
+    //llvm::dump(memObjects, errs());
 
     for(auto& idToType : *pag) {
         if(ObjPN* opn = dyn_cast<ObjPN>(idToType.second)) {
@@ -118,8 +124,10 @@ void SVFAAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
     //    disjointObjects.push_front(*pt);
     //}
 //#define PRINT_OBJS
+    auto numObjs = 0;
     for(auto& dob : disjointObjects) {
       llvm::dump(dob, errs());
+      numObjs += dob.count();
 #ifdef PRINT_OBJS      
       for(auto nid : dob) {
           if(nid == 0 || pag->getObject(nid) == nullptr ||  pag->getObject(nid)->getRefVal() == nullptr) continue;
@@ -131,6 +139,8 @@ void SVFAAPass::runPointerAnalysis(llvm::Module& module, u32_t kind) {
 #endif
     }
     errs() << "Number of dijoint objects: " << disjointObjects.size() << "\n";
+    errs() << "Number of objects: " << numObjs << "\n";
+
 
 }
 
@@ -170,17 +180,17 @@ int SVFAAPass::isNotAllone(const llvm::Value* V) {
 
     return 0;
 }
-llvm::AliasAnalysis::AliasResult SVFAAPass::alias(const Value* V1, const Value* V2) {
-    llvm::AliasAnalysis::AliasResult result = MayAlias;
-
-    PAG* pag = _pta->getPAG();
-    if (pag->hasValueNode(V1) && pag->hasValueNode(V2)) {
-        result = _pta->alias(V1, V2);
-    }
-
-    return result;
-
-}
+//llvm::AliasResult SVFAAPass::alias(const Value* V1, const Value* V2) {
+//    llvm::AliasAnalysis::AliasResult result = MayAlias;
+//
+//    PAG* pag = _pta->getPAG();
+//    if (pag->hasValueNode(V1) && pag->hasValueNode(V2)) {
+//        result = _pta->alias(V1, V2);
+//    }
+//
+//    return result;
+//
+//}
 std::string kindTostring(GenericNode<PAGNode, PAGEdge>::GNodeK kind) {
   switch(kind) {
     case PAGNode::PNODEK::ValNode: return "ValNode";

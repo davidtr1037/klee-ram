@@ -200,7 +200,6 @@ void KModule::addInternalFunction(const char* functionName){
   internalFunctions.insert(internalFunction);
 }
 
-<<<<<<< HEAD
 bool KModule::link(std::vector<std::unique_ptr<llvm::Module>> &modules,
                    const std::string &entryPoint) {
   auto numRemainingModules = modules.size();
@@ -303,44 +302,7 @@ void KModule::manifest(InterpreterHandler *ih, bool forceSourceOutput, AAPass *a
   klee_message("Runnining pointer analysis...");
   aa->runOnModule(*module);
   klee_message("Finished pointer analysis");
-  // Write out the .ll assembly file. We truncate long lines to work
-  // around a kcachegrind parsing bug (it puts them on new lines), so
-  // that source browsing works.
-  if (OutputSource) {
-    llvm::raw_fd_ostream *os = ih->openOutputFile("assembly.ll");
-    assert(os && !os->has_error() && "unable to open source output");
 
-    // We have an option for this in case the user wants a .ll they
-    // can compile.
-    if (NoTruncateSourceLines) {
-      *os << *module;
-    } else {
-      std::string string;
-      llvm::raw_string_ostream rss(string);
-      rss << *module;
-      rss.flush();
-      const char *position = string.c_str();
-
-      for (;;) {
-        const char *end = index(position, '\n');
-        if (!end) {
-          *os << position;
-          break;
-        } else {
-          unsigned count = (end - position) + 1;
-          if (count<255) {
-            os->write(position, count);
-          } else {
-            os->write(position, 254);
-            *os << "\n";
-          }
-          position = end+1;
-        }
-      }
-    }
-    delete os;
->>>>>>> 2f76762... Add options to control modeling of constant, flat mem and pointer analysis
-  }
 
   if (OutputModule) {
     std::unique_ptr<llvm::raw_fd_ostream> f(ih->openOutputFile("final.bc"));

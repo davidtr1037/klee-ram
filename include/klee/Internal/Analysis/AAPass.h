@@ -20,9 +20,9 @@ public:
   virtual int isNotAllone(const llvm::Value* V) { return 1;}
   virtual void printsPtsTo(const llvm::Value* V) {}
   virtual bool isModelingConstants() {return false;}
-  virtual llvm::AliasAnalysis::AliasResult alias(const llvm::Value *V1,
+  virtual llvm::AliasResult alias(const llvm::Value *V1,
                                                  const llvm::Value *V2) {
-      return llvm::AliasAnalysis::AliasResult::MayAlias;
+      return llvm::AliasResult::MayAlias;
   }
   virtual bool runOnModule(llvm::Module &module) { return false;}
   DummyAAPass(){}
@@ -32,7 +32,7 @@ public:
 
 
 
-class SVFAAPass : public llvm::ModulePass, public llvm::AliasAnalysis, public AAPass {
+class SVFAAPass : public llvm::ModulePass,  public AAPass {
 
 public:
   static char ID;
@@ -46,31 +46,28 @@ public:
   SVFAAPass(): SVFAAPass(false) {}
 
   SVFAAPass(bool modelConstants)
-      : llvm::ModulePass(ID), llvm::AliasAnalysis(), modelConstantsIndividually(modelConstants),
+      : llvm::ModulePass(ID),  modelConstantsIndividually(modelConstants),
         type(PointerAnalysis::Default_PTA), _pta(0) {}
 
   ~SVFAAPass();
 
-  virtual inline void getAnalysisUsage(llvm::AnalysisUsage &au) const {
-    au.setPreservesAll();
-  }
 
   virtual inline void *getAdjustedAnalysisPointer(llvm::AnalysisID id) {
     return this;
   }
 
-  virtual inline llvm::AliasAnalysis::AliasResult
-  alias(const llvm::AliasAnalysis::Location &LocA,
-        const llvm::AliasAnalysis::Location &LocB) {
-    return alias(LocA.Ptr, LocB.Ptr);
-  }
-
-  virtual llvm::AliasAnalysis::AliasResult alias(const llvm::Value *V1,
-                                                 const llvm::Value *V2);
-
+//  virtual inline llvm::AliasResult
+//  alias(const llvm::MemoryLocation &LocA,
+//        const llvm::MemoryLocation &LocB) {
+//    return alias(LocA.Ptr, LocB.Ptr);
+//  }
+//
+//  virtual llvm::AliasResult alias(const llvm::Value *V1,
+//                                                 const llvm::Value *V2);
+//
   virtual bool runOnModule(llvm::Module &module);
 
-  virtual inline const char *getPassName() const { return "AAPass"; }
+  virtual inline llvm::StringRef getPassName() const { return "AAPass"; }
 
   void setPAType(PointerAnalysis::PTATY type) { this->type = type; }
 

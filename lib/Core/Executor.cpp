@@ -716,7 +716,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
       if(FlatConstants && FlatMem 
           && i->getType()->getElementType()->isArrayTy()
           && dyn_cast<ArrayType>(i->getType()->getElementType())->getElementType()->isIntegerTy()) {
-          int pn = aa->isNotAllone(i);
+          int pn = aa->isNotAllone(&*i);
           //aa->printsPtsTo(i);
           //errs() << i->getName() << " pn: " << pn << "\n";
           //i->getType()->getElementType()->dump();
@@ -3829,7 +3829,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
 
   if(MergeMRes && (nullptr == state.needToClose)  && rl.size() > 1) {
     state.openMergeStack.push_back(
-      ref<MergeHandler>(new MergeHandler(this)));
+      ref<MergeHandler>(new MergeHandler(this, &state)));
     auto it = target->inst->getParent()->rbegin();
     it++;
     state.needToClose = &*it;

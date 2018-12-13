@@ -18,12 +18,12 @@ char OpenMergePass::ID = 0;
 
 bool OpenMergePass::doInitialization(Module &M) {
       Constant* c  = M.getOrInsertFunction("klee_open_merge", 
-                                           TypeBuilder<void(...), false>::get(getGlobalContext())
+                                           TypeBuilder<void(...), false>::get(M.getContext())
                                           );
       kleeOpenMerge = dyn_cast<Function>(c);
 
       c  = M.getOrInsertFunction("klee_close_merge", 
-                                  TypeBuilder<void(...), false>::get(getGlobalContext())
+                                  TypeBuilder<void(...), false>::get(M.getContext())
                                  );
 
       kleeCloseMerge = dyn_cast<Function>(c);
@@ -52,8 +52,8 @@ bool OpenMergePass::runOnFunction(Function& F) {
     for(auto bb = F.begin(), be = F.end(); bb != be; ++bb) {
       for(auto inst = bb->begin(), ie = bb->end(); inst!= ie; ++inst) {
          if(isADoubleDereference(dyn_cast<LoadInst>(inst))) {
-           CallInst::Create(kleeOpenMerge)->insertBefore(inst);
-           CallInst::Create(kleeCloseMerge)->insertAfter(inst);
+           CallInst::Create(kleeOpenMerge)->insertBefore(&*inst);
+           CallInst::Create(kleeCloseMerge)->insertAfter(&*inst);
            ret = true;
     //       outs() << "load\n";
          }
@@ -88,9 +88,9 @@ bool RemoveReallocPass::runOnFunction(Function &F) {
             if(callInst->getCalledFunction() && callInst->getCalledFunction()->getName() == "realloc") {
               inst++;
 //              BB++;
-              Instruction* isReallocNull = new ICmpInst(inst, CmpInst::Predicate::ICMP_EQ ,callInst, ConstantPointerNull::get(dyn_cast<PointerType>(callInst->getCalledFunction()->getReturnType())));
+              Instruction* isReallocNull = new ICmpInst(&*inst, CmpInst::Predicate::ICMP_EQ ,callInst, ConstantPointerNull::get(dyn_cast<PointerType>(callInst->getCalledFunction()->getReturnType())));
 
-              TerminatorInst *ThenTerm = SplitBlockAndInsertIfThen(isReallocNull, false);
+              TerminatorInst *ThenTerm = SplitBlockAndInsertIfThen(isReallocNull, &*inst, false);
 
               Value* size = callInst->getArgOperand(1);
               Value* address = callInst->getOperand(0);
@@ -102,6 +102,7 @@ bool RemoveReallocPass::runOnFunction(Function &F) {
               std::vector<Value*> gepIdx;
               gepIdx.push_back(ConstantInt::getSigned(IntegerType::get(F.getContext(), 8), -1));
               GetElementPtrInst * gep = GetElementPtrInst::Create(
+                  Type::getInt32Ty(F.getContext()),
 //                  memcpyFun->getFunctionType()->getParamType(2),
 //Change this for padding!!!
                   CastInst::CreatePointerCast(address,Type::getInt32PtrTy(F.getContext()), "ptrcast", ThenTerm),
@@ -123,16 +124,8 @@ bool RemoveReallocPass::runOnFunction(Function &F) {
               CallInst* memcpyAddr = CallInst::Create(memcpyFun,memcpyArg, "", ThenTerm);
               CallInst::CreateFree(address,ThenTerm);
 
-              PHINode *phi = PHINode::Create(mallocedAddr->getType(), 2, "phi", inst);
-
-              for(Value::use_iterator uses = callInst->use_begin(); uses != callInst->use_end(); ) {
-                      User* U = *uses;
-                     auto *Usr = dyn_cast<Instruction>(U);
-                     ++uses;
-                     if (Usr && Usr->getParent() == callInst->getParent())
-                        continue;
-                     U->replaceUsesOfWith(callInst,phi);
-              }
+              PHINode *phi = PHINode::Create(mallocedAddr->getType(), 2, "phi", &*inst);
+              callInst->replaceUsesOutsideBlock(phi, &*BB);
 
               phi->addIncoming(mallocedAddr, mallocedAddr->getParent());
               phi->addIncoming(callInst, callInst->getParent());
