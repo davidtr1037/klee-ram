@@ -299,9 +299,9 @@ void KModule::manifest(InterpreterHandler *ih, bool forceSourceOutput, AAPass *a
   }
 
     /* run pointer analysis */
-  klee_message("Runnining pointer analysis...");
-  aa->runOnModule(*module);
-  klee_message("Finished pointer analysis");
+ // klee_message("Runnining pointer analysis...");
+ // aa->runOnModule(*module);
+ // klee_message("Finished pointer analysis");
 
 
   if (OutputModule) {

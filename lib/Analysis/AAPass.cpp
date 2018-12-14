@@ -161,9 +161,10 @@ void SVFAAPass::printsPtsTo(const llvm::Value* V) {
   errs() << "node: " << node << " -> ";
   llvm::dump(ptsTo, errs());
 }
-int SVFAAPass::isNotAllone(const llvm::Value* V) {
+int SVFAAPass::isNotAllone(const llvm::Value* V, klee::ExecutionState& state) {
     if(V == nullptr) return 0;
     PAG* pag = _pta->getPAG();
+    if(!pag->hasValueNode(V)) return 0;
     NodeID node = pag->getValueNode(V);
     PointsTo& ptsTo = _pta->getPts(node);
 //    ptsTo.set(node);

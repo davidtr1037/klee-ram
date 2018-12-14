@@ -330,6 +330,12 @@ cl::opt<bool>
   UseSVFPointerAnalysis("pts",
             cl::desc("Use SVF pointer analysis"),
             cl::init(false));
+  cl::opt<bool>
+  ManualPts("manual",
+            cl::desc("Use manual annotation for pointer analysis"),
+            cl::init(false));
+
+
 
   cl::opt<bool>
   UseFlowAAs("flow-aa",
@@ -444,7 +450,24 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
   kmodule = std::unique_ptr<KModule>(new KModule());
 
   // Preparing the final module happens in multiple stages
+  if(UseSVFPointerAnalysis) {
+      auto SVFaa = new SVFAAPass(FlatConstants);
+//      SVFaa->setPAType(PointerAnalysis::Andersen_WPA);
+      SVFaa->setPAType(PointerAnalysis::AndersenWaveDiff_WPA);
+      if(UseFlowAAs) {
+        SVFaa->setPAType(PointerAnalysis::FSSPARSE_WPA);
+      }
+      aa = SVFaa;
+  } else {
+      if(ManualPts)
+        aa = new ManualAAPass();
+      else 
+        aa = new DummyAAPass();
+  }
 
+  klee_message("Runnining pointer analysis...");
+  aa->runOnModule(*modules[0]);
+  klee_message("Finished pointer analysis");
   // Link with KLEE intrinsics library before running any optimizations
   SmallString<128> LibPath(opts.LibraryDir);
   llvm::sys::path::append(LibPath, "libkleeRuntimeIntrinsic.bca");
@@ -478,17 +501,7 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
   kmodule->optimiseAndPrepare(opts, preservedFunctions);
 
   // 4.) Manifest the module
-  if(UseSVFPointerAnalysis) {
-      auto SVFaa = new SVFAAPass(FlatConstants);
-      SVFaa->setPAType(PointerAnalysis::Andersen_WPA);
-      SVFaa->setPAType(PointerAnalysis::AndersenWaveDiff_WPA);
-      if(UseFlowAAs) {
-        SVFaa->setPAType(PointerAnalysis::FSSPARSE_WPA);
-      }
-      aa = SVFaa;
-  } else {
-      aa = new DummyAAPass();
-  }
+
 
   kmodule->manifest(interpreterHandler, StatsTracker::useStatistics(), aa);
 
@@ -716,7 +729,7 @@ void Executor::initializeGlobals(ExecutionState &state) {
       if(FlatConstants && FlatMem 
           && i->getType()->getElementType()->isArrayTy()
           && dyn_cast<ArrayType>(i->getType()->getElementType())->getElementType()->isIntegerTy()) {
-          int pn = aa->isNotAllone(&*i);
+          int pn = aa->isNotAllone(&*i, state);
           //aa->printsPtsTo(i);
           //errs() << i->getName() << " pn: " << pn << "\n";
           //i->getType()->getElementType()->dump();
@@ -2843,11 +2856,11 @@ void Executor::bindModuleConstants() {
     Cell &c = kmodule->constantTable[i];
     c.value = evalConstant(kmodule->constants[i]);
 
-    if(i == 6) {
-    errs() << "At index " << i << " inserted " << c.value.get() << " \n";
-    c.value->dump();
-    kmodule->constants[i]->print(errs());
-    }
+ //   if(i == 6) {
+ //   errs() << "At index " << i << " inserted " << c.value.get() << " \n";
+ //   c.value->dump();
+ //   kmodule->constants[i]->print(errs());
+ //   }
     if(c.value.get() == nullptr) {
       errs() << i << " is at nullptr!\n";
       assert(false);
@@ -3500,14 +3513,14 @@ void Executor::executeAlloc(ExecutionState &state,
 
   if(FlatMem && reallocFrom == nullptr && isLocal == false) {
 //    errs() << "Alloc at  " << target->printFileLine() << "\n";
-    if(int pn = aa->isNotAllone(target->inst)) {
+    if(int pn = aa->isNotAllone(target->inst, state)) {
 //        errs() << "Goes to SBRK! pool num: " << pn -1 << " ";
         //If the inc is too big things will go wrong probvably
         bindLocal(target, state, executeSbrk(state, size, pn - 1));
         return;
     }
   } else if(FlatMem && isLocal == false) {
-    if(int pn = aa->isNotAllone(target->inst)) {
+    if(int pn = aa->isNotAllone(target->inst, state)) {
  //       errs() << "Realloc of sbrk object pn: " << pn << "  ...bailing\n";
         return bindLocal(target, state, ConstantExpr::create(0, Context::get().getPointerWidth()));
     }
@@ -3643,7 +3656,8 @@ void Executor::executeFree(ExecutionState &state,
     for (Executor::ExactResolutionList::iterator it = rl.begin(), 
            ie = rl.end(); it != ie; ++it) {
       const MemoryObject *mo = it->first.first;
-      if(FlatMem && aa->isNotAllone(mo->allocSite)) {
+      //TODO: This is not freeing manually anotated objects
+      if(FlatMem && aa->isNotAllone(mo->allocSite, state)) {
           MemoryObject *wmo = const_cast<MemoryObject*>(mo);
           const ObjectState* os = it->first.second;
          if(wmo->freeSpace == NULL) wmo->freeSpace = new FreeOffsets();
@@ -3818,7 +3832,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
          if(FlatMem && false) {
              Value * v = isWrite ? target->inst : dyn_cast<LoadInst>(state.prevPC->inst)->getPointerOperand();
              errs() << "isNotALone: " 
-              << aa->isNotAllone(v) 
+              << aa->isNotAllone(v,state) 
               << " mo: " << mo << " " << mo->name << " addrs: " << mo->address << " size: " << mo->size 
               <<  "\n";
              aa->printsPtsTo(v);

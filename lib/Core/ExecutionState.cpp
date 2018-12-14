@@ -63,6 +63,7 @@ StackFrame::~StackFrame() {
 /***/
 
 ExecutionState::ExecutionState(KFunction *kf) :
+    memoryPool(0),
     pc(kf->instructions),
     prevPC(pc),
 
@@ -100,6 +101,7 @@ ExecutionState::~ExecutionState() {
 }
 
 ExecutionState::ExecutionState(const ExecutionState& state):
+    memoryPool(state.memoryPool),
     fnAliases(state.fnAliases),
     pc(state.pc),
     prevPC(state.prevPC),

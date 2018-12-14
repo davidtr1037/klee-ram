@@ -17,6 +17,7 @@
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
 #include "klee/Internal/Support/Debug.h"
+#include "klee/Internal/Analysis/AAPass.h"
 #include "klee/Internal/Support/ErrorHandling.h"
 
 #include "Executor.h"
@@ -103,6 +104,8 @@ static SpecialFunctionHandler::HandlerInfo handlerInfo[] = {
 #endif
   add("klee_is_symbolic", handleIsSymbolic, true),
   add("klee_make_symbolic", handleMakeSymbolic, false),
+  add("klee_memory_pool", handleMemoryPool, false),
+  add("klee_memory_pool_end", handleMemoryPool, false),
   add("klee_mark_global", handleMarkGlobal, false),
   add("klee_open_merge", handleOpenMerge, false),
   add("klee_close_merge", handleCloseMerge, false),
@@ -840,9 +843,31 @@ void SpecialFunctionHandler::handleDefineFixedObject(ExecutionState &state,
   mo->isUserSpecified = true; // XXX hack;
 }
 
-void SpecialFunctionHandler::handleMakeSymbolic(ExecutionState &state,
+void SpecialFunctionHandler::handleMemoryPool(ExecutionState &state,
                                                 KInstruction *target,
                                                 std::vector<ref<Expr> > &arguments) {
+
+    ManualAAPass* aa = dyn_cast<ManualAAPass>(executor.aa);
+    if(aa == nullptr) return;
+
+    //reset case
+    if(arguments.size() == 0)  {
+      errs() << &state <<  " -> reset memory pool: " << state.memoryPool << "\n";
+      state.memoryPool = 0;
+      return;
+    }
+
+    ConstantExpr* cex = dyn_cast<ConstantExpr>(arguments[0]);
+    assert(cex && "can't handle symbolic memory pools");
+    state.memoryPool = cex->getZExtValue();
+    errs() << &state <<  " -> Set memory pool: " << state.memoryPool << "\n";
+    cex->dump();
+
+}
+
+void SpecialFunctionHandler::handleMakeSymbolic(ExecutionState &state,
+                                                KInstruction *target,
+                                               std::vector<ref<Expr> > &arguments) {
   std::string name;
 
   if (arguments.size() != 3) {

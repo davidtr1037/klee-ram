@@ -55,7 +55,6 @@ public:
   std::vector<std::pair<unsigned, std::pair<unsigned, std::string>>> symbolicObjects;
   unsigned id;
   uint64_t address;
-  int pn;
 
   /// size in bytes
   unsigned size;
@@ -69,6 +68,7 @@ public:
   FreeOffsets* freeSpace;
 
   MemoryManager *parent;
+  int pn;
 
   /// "Location" for which this memory object was allocated. This
   /// should be either the allocating instruction or the global object
@@ -109,10 +109,10 @@ public:
       address(_address),
       size(_size),
       name("unnamed"),
-      freeSpace(NULL),
       isLocal(_isLocal),
       isGlobal(_isGlobal),
       isFixed(_isFixed),
+      freeSpace(NULL),
       isUserSpecified(false),
       parent(_parent), 
       pn(-1),

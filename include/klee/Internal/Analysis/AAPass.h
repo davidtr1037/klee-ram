@@ -3,11 +3,24 @@
 
 #include "MemoryModel/PointerAnalysis.h"
 #include <llvm/Analysis/AliasAnalysis.h>
+#include "llvm/Support/Casting.h"
 #include <llvm/Pass.h>
+#include "klee/ExecutionState.h"
+
 class AAPass {
+protected:
+  enum PassType {
+      Dummy,
+      SVF,
+      Manual
+    };
+private:
+  const PassType Kind;
 public:
+  AAPass(PassType pt): Kind(pt) {}
+  PassType getKind() const { return Kind; }
   virtual int getMaxGroupedObjects() = 0;
-  virtual int isNotAllone(const llvm::Value* V) = 0;
+  virtual int isNotAllone(const llvm::Value* V, klee::ExecutionState& state) = 0;
   virtual void printsPtsTo(const llvm::Value* V) = 0;
   virtual bool isModelingConstants() = 0;
   virtual bool runOnModule(llvm::Module &module) = 0;
@@ -17,7 +30,7 @@ public:
 class DummyAAPass : public AAPass {
 public:
   virtual int getMaxGroupedObjects() { return 1; }
-  virtual int isNotAllone(const llvm::Value* V) { return 1;}
+  virtual int isNotAllone(const llvm::Value* V, klee::ExecutionState& state) { return 1;}
   virtual void printsPtsTo(const llvm::Value* V) {}
   virtual bool isModelingConstants() {return false;}
   virtual llvm::AliasResult alias(const llvm::Value *V1,
@@ -25,7 +38,8 @@ public:
       return llvm::AliasResult::MayAlias;
   }
   virtual bool runOnModule(llvm::Module &module) { return false;}
-  DummyAAPass(){}
+  static bool classof(const AAPass* aa) {return aa->getKind() == Dummy;}
+  DummyAAPass(): AAPass(Dummy){}
 
 };
 
@@ -46,12 +60,13 @@ public:
   SVFAAPass(): SVFAAPass(false) {}
 
   SVFAAPass(bool modelConstants)
-      : llvm::ModulePass(ID),  modelConstantsIndividually(modelConstants),
+      : llvm::ModulePass(ID), AAPass(SVF), modelConstantsIndividually(modelConstants),
         type(PointerAnalysis::Default_PTA), _pta(0) {}
 
   ~SVFAAPass();
 
 
+  static bool classof(const AAPass* aa) {return aa->getKind() == SVF;}
   virtual inline void *getAdjustedAnalysisPointer(llvm::AnalysisID id) {
     return this;
   }
@@ -74,7 +89,7 @@ public:
   BVDataPTAImpl *getPTA() { return _pta; }
   //void getPointsTo(const llvm::Value* V);
   int getMaxGroupedObjects();
-  int isNotAllone(const llvm::Value* V);
+  int isNotAllone(const llvm::Value* V, klee::ExecutionState&);
   void printsPtsTo(const llvm::Value* V);
   bool isModelingConstants();
 
@@ -87,4 +102,22 @@ private:
   BVDataPTAImpl *_pta;
 };
 
+class ManualAAPass : public AAPass {
+public:
+  ManualAAPass() : AAPass(Manual) {}
+  static bool classof(const AAPass* aa) {return aa->getKind() == Manual;}
+
+  int getMaxGroupedObjects() { return 10; }
+  int isNotAllone(const llvm::Value* V, klee::ExecutionState& state) { 
+
+      llvm::errs() << "returning " << state.memoryPool << "\n";
+      if(state.memoryPool > 0)
+          state.dumpStack(llvm::errs());
+
+      return state.memoryPool; 
+  }
+  void printsPtsTo(const llvm::Value* V) {}
+  bool isModelingConstants() { return false; }
+  bool runOnModule(llvm::Module &module) { return false; }
+};
 #endif /* AAPASS_H */
