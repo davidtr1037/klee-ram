@@ -156,10 +156,10 @@ void SVFAAPass::printsPtsTo(const llvm::Value* V) {
   for(auto nid: ptsTo) {
     if(nid == 0 || pag->getObject(nid) == nullptr ||  pag->getObject(nid)->getRefVal() == nullptr) continue;
     errs() << "node: " << nid  << " " << pag->getObject(nid)->getRefVal() << " -> ";
-    pag->getObject(nid)->getRefVal()->dump();
+//    pag->getObject(nid)->getRefVal()->dump();
   }
   errs() << "node: " << node << " -> ";
-  llvm::dump(ptsTo, errs());
+//  llvm::dump(ptsTo, errs());
 }
 int SVFAAPass::isNotAllone(const llvm::Value* V, klee::ExecutionState& state) {
     if(V == nullptr) return 0;
