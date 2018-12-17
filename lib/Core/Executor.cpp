@@ -3452,7 +3452,7 @@ ref<klee::ConstantExpr> Executor::executeSbrk(ExecutionState &state, ref<Expr> i
   }
   if(increment > PoolThreshold) {
       errs() << "Allocation bigger than pool threshold " << increment << "\n";
-      state.prevPC->inst->dump();
+//      state.prevPC->inst->dump();
       state.dumpStack(errs());
   }
   if(increment > 200000) {
