@@ -45,7 +45,7 @@ project(KLEE CXX C)
 include(CheckFunctionExists)
 include(CheckLibraryExists)
 
-set(SVF_ROOT_DIR  /data/Random/suopa/SVF) 
+set(SVF_ROOT_DIR CACHE PATH  /data/Random/suopa/SVF) 
 ###############################################################################
 # Project version
 ###############################################################################
