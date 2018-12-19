@@ -96,12 +96,12 @@ void MemoryObject::getAllocInfo(std::string &result) const {
 ObjectState::ObjectState(const MemoryObject *mo)
   : copyOnWriteOwner(0),
     refCount(0),
-    object(mo),
     concreteStore(new uint8_t[mo->size]),
     concreteMask(0),
     flushMask(0),
     knownSymbolics(0),
     updates(0, 0),
+    object(mo),
     size(mo->size),
     readOnly(false) {
   mo->refCount++;
@@ -118,12 +118,12 @@ ObjectState::ObjectState(const MemoryObject *mo)
 ObjectState::ObjectState(const MemoryObject *mo, const Array *array)
   : copyOnWriteOwner(0),
     refCount(0),
-    object(mo),
     concreteStore(new uint8_t[mo->size]),
     concreteMask(0),
     flushMask(0),
     knownSymbolics(0),
     updates(array, 0),
+    object(mo),
     size(mo->size),
     readOnly(false) {
   mo->refCount++;
@@ -134,12 +134,12 @@ ObjectState::ObjectState(const MemoryObject *mo, const Array *array)
 ObjectState::ObjectState(const ObjectState &os) 
   : copyOnWriteOwner(0),
     refCount(0),
-    object(os.object),
     concreteStore(new uint8_t[os.size]),
     concreteMask(os.concreteMask ? new BitArray(*os.concreteMask, os.size) : 0),
     flushMask(os.flushMask ? new BitArray(*os.flushMask, os.size) : 0),
     knownSymbolics(0),
     updates(os.updates),
+    object(os.object),
     size(os.size),
     readOnly(false) {
   assert(!os.readOnly && "no need to copy read only object?");
@@ -160,12 +160,12 @@ ObjectState::ObjectState(const ObjectState &os)
 ObjectState::ObjectState(const ObjectState &os, const MemoryObject* mo) 
   : copyOnWriteOwner(0),
     refCount(0),
-    object(mo),
     concreteStore(new uint8_t[os.size]),
     concreteMask(os.concreteMask ? new BitArray(*os.concreteMask, os.size) : 0),
     flushMask(os.flushMask ? new BitArray(*os.flushMask, os.size) : 0),
     knownSymbolics(0),
     updates(os.updates),
+    object(mo),
     size(os.size),
     readOnly(false) {
   assert(!os.readOnly && "no need to copy read only object?");

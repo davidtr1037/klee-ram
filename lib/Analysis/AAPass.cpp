@@ -2,8 +2,10 @@
 #include <MemoryModel/MemModel.h>
 #include <WPA/Andersen.h>
 #include <WPA/FlowSensitive.h>
+#include "Util/ExtAPI.h"
 #include "llvm/ADT/SparseBitVector.h"
 
+#include "klee/Internal/Module/KModule.h"
 #include "klee/Internal/Analysis/AAPass.h"
 
 using namespace llvm;
@@ -162,6 +164,7 @@ void SVFAAPass::printsPtsTo(const llvm::Value* V) {
 //  llvm::dump(ptsTo, errs());
 }
 int SVFAAPass::isNotAllone(const llvm::Value* V, klee::ExecutionState& state) {
+
     if(V == nullptr) return 0;
     PAG* pag = _pta->getPAG();
     if(!pag->hasValueNode(V)) return 0;
@@ -181,6 +184,20 @@ int SVFAAPass::isNotAllone(const llvm::Value* V, klee::ExecutionState& state) {
 
     return 0;
 }
+bool SVFAAPass::isNoopInContext(std::vector<klee::KFunction*> *allocContext) {
+    auto extApi = ExtAPI::getExtAPI();
+    if(allocContext == nullptr) return false;
+
+    for(auto kf : *allocContext) {
+//      errs() << "Looking at " << sf.kf->function->getName() << " type:" << extApi->get_type(sf.kf->function) << " decl: " << sf.kf->function->isDeclaration() << "\n";
+      if(extApi->get_type(kf->function) == ExtAPI::extf_t::EFT_NOOP) {
+          errs() << "State has noop in backtrace: " << kf->function->getName() << "\n";
+ //         state.dumpStack(errs());
+          return true;
+      }
+    }
+    return false;
+  }
 //llvm::AliasResult SVFAAPass::alias(const Value* V1, const Value* V2) {
 //    llvm::AliasAnalysis::AliasResult result = MayAlias;
 //

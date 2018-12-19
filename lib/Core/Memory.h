@@ -30,6 +30,7 @@ namespace klee {
 class MemoryManager;
 class Solver;
 class ArrayCache;
+struct KFunction;
 
 class FreeOffsets {
 private:
@@ -64,8 +65,9 @@ public:
   mutable bool isGlobal;
   bool isFixed;
 
-  bool isUserSpecified;
+
   FreeOffsets* freeSpace;
+  bool isUserSpecified;
 
   MemoryManager *parent;
   int pn;
@@ -74,6 +76,7 @@ public:
   /// should be either the allocating instruction or the global object
   /// it was allocated for (or whatever else makes sense).
   const llvm::Value *allocSite;
+  std::unique_ptr<std::vector<KFunction*>> allocContext;
   
   /// A list of boolean expressions the user has requested be true of
   /// a counterexample. Mutable since we play a little fast and loose
@@ -95,6 +98,7 @@ public:
       size(0),
       isFixed(true),
       freeSpace(NULL),
+      isUserSpecified(false),
       parent(NULL),
       pn(-1),
       allocSite(0) {

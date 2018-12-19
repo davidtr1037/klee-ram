@@ -7,6 +7,8 @@
 #include <llvm/Pass.h>
 #include "klee/ExecutionState.h"
 
+struct klee::KFunction;
+
 class AAPass {
 protected:
   enum PassType {
@@ -42,7 +44,6 @@ public:
   DummyAAPass(): AAPass(Dummy){}
 
 };
-
 
 
 
@@ -92,6 +93,8 @@ public:
   int isNotAllone(const llvm::Value* V, klee::ExecutionState&);
   void printsPtsTo(const llvm::Value* V);
   bool isModelingConstants();
+
+  static bool isNoopInContext(std::vector<klee::KFunction*> *allocContext);
 
 private:
   bool modelConstantsIndividually;

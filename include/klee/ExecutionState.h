@@ -180,6 +180,13 @@ public:
   void addSymbolic(const MemoryObject *mo, const Array *array);
   void replaceSymbolic(const MemoryObject *mo, const Array *array);
   void addConstraint(ref<Expr> e) { constraints.addConstraint(e); }
+  std::unique_ptr<std::vector<KFunction*>> getCurrentContext() {
+    std::unique_ptr<std::vector<KFunction*>> ret(new std::vector<KFunction*>());
+    for(const auto& sf : stack)  {
+      ret->emplace_back(sf.kf);
+    }
+    return ret;
+  }
 
   bool merge(const ExecutionState &b);
   void dumpStack(llvm::raw_ostream &out) const;

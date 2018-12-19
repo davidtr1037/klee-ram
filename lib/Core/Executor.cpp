@@ -452,8 +452,10 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
   // Preparing the final module happens in multiple stages
   if(UseSVFPointerAnalysis) {
       auto SVFaa = new SVFAAPass(FlatConstants);
-//      SVFaa->setPAType(PointerAnalysis::Andersen_WPA);
       SVFaa->setPAType(PointerAnalysis::AndersenWaveDiff_WPA);
+      SVFaa->setPAType(PointerAnalysis::AndersenWaveDiffWithType_WPA);
+//      SVFaa->setPAType(PointerAnalysis::AndersenLCD_WPA);
+//      SVFaa->setPAType(PointerAnalysis::Andersen_WPA);
       if(UseFlowAAs) {
         SVFaa->setPAType(PointerAnalysis::FSSPARSE_WPA);
       }
@@ -465,9 +467,9 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
         aa = new DummyAAPass();
   }
 
-  klee_message("Runnining pointer analysis...");
-  aa->runOnModule(*modules[0]);
-  klee_message("Finished pointer analysis");
+//  klee_message("Runnining pointer analysis...");
+//  aa->runOnModule(*modules[0]);
+//  klee_message("Finished pointer analysis");
   // Link with KLEE intrinsics library before running any optimizations
   SmallString<128> LibPath(opts.LibraryDir);
   llvm::sys::path::append(LibPath, "libkleeRuntimeIntrinsic.bca");
@@ -3511,16 +3513,17 @@ void Executor::executeAlloc(ExecutionState &state,
                             const ObjectState *reallocFrom,
                             size_t allocationAlignment) {
 
+  auto ctx = state.getCurrentContext();
   if(FlatMem && reallocFrom == nullptr && isLocal == false) {
 //    errs() << "Alloc at  " << target->printFileLine() << "\n";
-    if(int pn = aa->isNotAllone(target->inst, state)) {
+    if(int pn = aa->isNotAllone(target->inst, state) && !SVFAAPass::isNoopInContext(ctx.get())) {
 //        errs() << "Goes to SBRK! pool num: " << pn -1 << " ";
         //If the inc is too big things will go wrong probvably
         bindLocal(target, state, executeSbrk(state, size, pn - 1));
         return;
     }
   } else if(FlatMem && isLocal == false) {
-    if(int pn = aa->isNotAllone(target->inst, state)) {
+    if(int pn = aa->isNotAllone(target->inst, state) && !SVFAAPass::isNoopInContext(ctx.get())) {
  //       errs() << "Realloc of sbrk object pn: " << pn << "  ...bailing\n";
         return bindLocal(target, state, ConstantExpr::create(0, Context::get().getPointerWidth()));
     }
@@ -3539,6 +3542,7 @@ void Executor::executeAlloc(ExecutionState &state,
     MemoryObject *mo =
         memory->allocate(CE->getZExtValue(), isLocal, /*isGlobal=*/false,
                          allocSite, allocationAlignment);
+    mo->allocContext = state.getCurrentContext();
     if (!mo) {
       bindLocal(target, state, 
                 ConstantExpr::alloc(0, Context::get().getPointerWidth()));
@@ -3657,7 +3661,7 @@ void Executor::executeFree(ExecutionState &state,
            ie = rl.end(); it != ie; ++it) {
       const MemoryObject *mo = it->first.first;
       //TODO: This is not freeing manually anotated objects
-      if(FlatMem && aa->isNotAllone(mo->allocSite, state)) {
+      if(FlatMem && aa->isNotAllone(mo->allocSite, state) && !SVFAAPass::isNoopInContext(mo->allocContext.get())) {
           MemoryObject *wmo = const_cast<MemoryObject*>(mo);
           const ObjectState* os = it->first.second;
          if(wmo->freeSpace == NULL) wmo->freeSpace = new FreeOffsets();
