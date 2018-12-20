@@ -358,6 +358,11 @@ cl::opt<bool>
             cl::desc("Put constants in flat memory"),
             cl::init(false));
 
+  cl::opt<bool>
+  FastMR("fast-multiple-resolution",
+            cl::desc("Ignore multiple resolution and just resolve to one path"),
+            cl::init(false));
+
   cl::opt<unsigned>
   PoolThreshold("pool-threshold",
            cl::desc("Spill into other pools after threshold"),
@@ -3532,7 +3537,8 @@ void Executor::executeAlloc(ExecutionState &state,
   auto ctx = state.getCurrentContext();
   if(FlatMem && reallocFrom == nullptr && isLocal == false) {
 //    errs() << "Alloc at  " << target->printFileLine() << "\n";
-    if(int pn = aa->isNotAllone(target->inst, state) && !SVFAAPass::isNoopInContext(ctx.get())) {
+    int pn = aa->isNotAllone(target->inst, state);
+    if(pn > 0 && !SVFAAPass::isNoopInContext(ctx.get())) {
 //        errs() << "Goes to SBRK! pool num: " << pn -1 << " ";
         //If the inc is too big things will go wrong probvably
         bindLocal(target, state, executeSbrk(state, size, pn - 1));
@@ -3854,8 +3860,14 @@ void Executor::executeMemoryOperation(ExecutionState &state,
       if(ctxToMemoryPool.count(allocationContexts) == 0) {
         ctxToMemoryPool[allocationContexts] = currentMpNumber++;
       }
+      if(FlatMem)
+          for(const auto& c : allocationContexts) 
+              errs() << c << "\n";
 
       //Note: need to merge these context if the same allocation sites, gets resolved in different resolutions
+      if(FastMR) {
+          rl = ResolutionList(1,rl[0]);
+      }
  
   }
 

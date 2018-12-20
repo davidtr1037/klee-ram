@@ -231,12 +231,17 @@ PreRunAAPass::PreRunAAPass(std::string preRunRecordPath): AAPass(PreRun) {
     std::ifstream infile(preRunRecordPath);
     std::string line;
     int poolNum = 0;
+    lastObject = 10;
     while(std::getline(infile, line)) {
         std::stringstream convertor;
+        int pn;
         convertor << line;
-        convertor >> poolNum;
+        convertor >> pn;
         if(convertor.fail()) {
-            ctxToMp[line] = poolNum;
+          ctxToMp[line] = poolNum + 1;
+        } else {
+          poolNum = pn;
+          lastObject++;
         }
     }
     
@@ -247,8 +252,9 @@ int PreRunAAPass::isNotAllone(const llvm::Value* V, klee::ExecutionState& state)
   auto ctxptr = state.getCurrentContext();
   std::string ctx = state.printContext(*ctxptr);
   if(ctxToMp.count(ctx) > 0) {
-    errs() << "Found ctx: \n" << ctx << "\n";
-    return ctxToMp[ctx] + 1;
+    auto ret = ctxToMp[ctx] + 1;
+    errs() << "Found ctx: \n" << ctx << " at mp: " << ret << "\n";
+    return ret;
   }
   else
     return 0;
