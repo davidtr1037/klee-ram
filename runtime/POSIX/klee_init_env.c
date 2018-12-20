@@ -244,5 +244,7 @@ int __klee_posix_wrapped_main(int argc, char **argv, char**envp);
 /* This wrapper gets called instead of main if POSIX setup is used */
 int __klee_posix_wrapper(int argcPtr, char **argvPtr) {
   klee_init_env(&argcPtr, &argvPtr);
-  return __klee_posix_wrapped_main(argcPtr, argvPtr, calloc(8,1));
+  char** envp = malloc(sizeof(char*));
+  envp[0] = NULL;
+  return __klee_posix_wrapped_main(argcPtr, argvPtr, envp);
 }
