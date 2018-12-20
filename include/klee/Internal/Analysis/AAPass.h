@@ -7,13 +7,14 @@
 #include <llvm/Pass.h>
 #include "klee/ExecutionState.h"
 
-struct klee::KFunction;
+//struct klee::KFunction;
 
 class AAPass {
 protected:
   enum PassType {
       Dummy,
       SVF,
+      PreRun,
       Manual
     };
 private:
@@ -94,7 +95,7 @@ public:
   void printsPtsTo(const llvm::Value* V);
   bool isModelingConstants();
 
-  static bool isNoopInContext(std::vector<klee::KFunction*> *allocContext);
+  static bool isNoopInContext(klee::ExecutionState::allocCtx_ty *allocContext);
 
 private:
   bool modelConstantsIndividually;
@@ -119,6 +120,22 @@ public:
 
       return state.memoryPool; 
   }
+  void printsPtsTo(const llvm::Value* V) {}
+  bool isModelingConstants() { return false; }
+  bool runOnModule(llvm::Module &module) { return false; }
+};
+
+class PreRunAAPass : public AAPass {
+    int lastObject = 1;
+    std::unordered_map<std::string, int> ctxToMp;
+public:
+  PreRunAAPass(std::string preRunRecordPath);
+  //: AAPass(PreRun) {}
+  static bool classof(const AAPass* aa) {return aa->getKind() == PreRun;}
+
+  int getMaxGroupedObjects() {return lastObject; }
+  int isNotAllone(const llvm::Value* V, klee::ExecutionState& state);
+
   void printsPtsTo(const llvm::Value* V) {}
   bool isModelingConstants() { return false; }
   bool runOnModule(llvm::Module &module) { return false; }

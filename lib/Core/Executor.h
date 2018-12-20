@@ -230,6 +230,8 @@ private:
   /// File to print executed instructions to
   std::unique_ptr<llvm::raw_ostream> debugInstFile;
 
+  std::unique_ptr<llvm::raw_ostream> memoryPoolRecord;
+
   // @brief Buffer used by logBuffer
   std::string debugBufferString;
 
@@ -239,6 +241,11 @@ private:
   /// Optimizes expressions
   ExprOptimizer optimizer;
   AAPass* aa;
+
+  //Increases each time we found a new set of resolutions
+  int currentMpNumber = 0;
+
+  std::map<std::set<std::string>, int> ctxToMemoryPool;
 
   llvm::Function* getTargetFunction(llvm::Value *calledVal,
                                     ExecutionState &state);

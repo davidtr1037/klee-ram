@@ -376,6 +376,24 @@ bool ExecutionState::merge(const ExecutionState &b) {
   return true;
 }
 
+std::unique_ptr<ExecutionState::allocCtx_ty> ExecutionState::getCurrentContext() {
+  std::unique_ptr<allocCtx_ty> ret(new allocCtx_ty());
+  for(const auto& sf : stack)  {
+    ret->emplace_back(sf.kf, sf.caller ? sf.caller->info : nullptr);
+  }
+  return ret;
+}
+std::string ExecutionState::printContext(ExecutionState::allocCtx_ty &ctx) {
+    std::string s;
+    llvm::raw_string_ostream out(s);
+    for(auto kf : ctx) {
+        out << kf.first->function->getName() << ":";
+        if(kf.second)
+         out << kf.second->line;
+        out <<  " -> ";
+    }
+    return out.str();
+}
 void ExecutionState::dumpStack(llvm::raw_ostream &out) const {
   unsigned idx = 0;
   const KInstruction *target = prevPC;

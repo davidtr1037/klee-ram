@@ -348,6 +348,11 @@ cl::opt<bool>
             cl::desc("Groups objects based on pointer analysis"),
             cl::init(false));
 
+  cl::opt<std::string>
+  PreRunRecordPath("pre-run-record",
+                     cl::init(""),
+                     cl::desc("If set uses PreRunAAPass with specified record"));
+
   cl::opt<bool>
   FlatConstants("flat-constants",
             cl::desc("Put constants in flat memory"),
@@ -439,6 +444,9 @@ Executor::Executor(LLVMContext &ctx, const InterpreterOptions &opts,
                  error.c_str());
     }
   }
+  
+  std::string error;
+  memoryPoolRecord = interpreterHandler->openOutputFile("memoryPoolsFound");
 }
 
 llvm::Module *
@@ -450,7 +458,9 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
   kmodule = std::unique_ptr<KModule>(new KModule());
 
   // Preparing the final module happens in multiple stages
-  if(UseSVFPointerAnalysis) {
+  if(PreRunRecordPath != "") {
+    aa = new PreRunAAPass(PreRunRecordPath);   
+  } else if(UseSVFPointerAnalysis) {
       auto SVFaa = new SVFAAPass(FlatConstants);
       SVFaa->setPAType(PointerAnalysis::AndersenWaveDiff_WPA);
       SVFaa->setPAType(PointerAnalysis::AndersenWaveDiffWithType_WPA);
@@ -525,6 +535,12 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
 }
 
 Executor::~Executor() {
+  for(const auto& ctxMp : ctxToMemoryPool) {
+      //TODO: merging of sets that intersect
+      *memoryPoolRecord << ctxMp.second << "\n";
+      for(const auto& c : ctxMp.first)
+        *memoryPoolRecord << c << "\n";
+  }
   delete memory;
   delete externalDispatcher;
   delete processTree;
@@ -3830,18 +3846,16 @@ void Executor::executeMemoryOperation(ExecutionState &state,
           state.dumpStack(errs());
           address->dump();
       }
+      std::set<std::string> allocationContexts;
       for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
          const MemoryObject *mo = i->first;
-//         state.prevPC->inst->dump();
-         if(FlatMem && false) {
-             Value * v = isWrite ? target->inst : dyn_cast<LoadInst>(state.prevPC->inst)->getPointerOperand();
-             errs() << "isNotALone: " 
-              << aa->isNotAllone(v,state) 
-              << " mo: " << mo << " " << mo->name << " addrs: " << mo->address << " size: " << mo->size 
-              <<  "\n";
-             aa->printsPtsTo(v);
-         }
+         allocationContexts.insert(state.printContext(*mo->allocContext));
       }
+      if(ctxToMemoryPool.count(allocationContexts) == 0) {
+        ctxToMemoryPool[allocationContexts] = currentMpNumber++;
+      }
+
+      //Note: need to merge these context if the same allocation sites, gets resolved in different resolutions
  
   }
 

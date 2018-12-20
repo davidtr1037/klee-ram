@@ -5,6 +5,8 @@
 #include "Util/ExtAPI.h"
 #include "llvm/ADT/SparseBitVector.h"
 
+#include <fstream>
+
 #include "klee/Internal/Module/KModule.h"
 #include "klee/Internal/Analysis/AAPass.h"
 
@@ -184,14 +186,14 @@ int SVFAAPass::isNotAllone(const llvm::Value* V, klee::ExecutionState& state) {
 
     return 0;
 }
-bool SVFAAPass::isNoopInContext(std::vector<klee::KFunction*> *allocContext) {
+bool SVFAAPass::isNoopInContext(klee::ExecutionState::allocCtx_ty *allocContext) {
     auto extApi = ExtAPI::getExtAPI();
     if(allocContext == nullptr) return false;
 
-    for(auto kf : *allocContext) {
+    for(auto kfPair : *allocContext) {
 //      errs() << "Looking at " << sf.kf->function->getName() << " type:" << extApi->get_type(sf.kf->function) << " decl: " << sf.kf->function->isDeclaration() << "\n";
-      if(extApi->get_type(kf->function) == ExtAPI::extf_t::EFT_NOOP) {
-          errs() << "State has noop in backtrace: " << kf->function->getName() << "\n";
+      if(extApi->get_type(kfPair.first->function) == ExtAPI::extf_t::EFT_NOOP) {
+          errs() << "State has noop in backtrace: " << kfPair.first->function->getName() << "\n";
  //         state.dumpStack(errs());
           return true;
       }
@@ -223,3 +225,32 @@ std::string kindTostring(GenericNode<PAGNode, PAGEdge>::GNodeK kind) {
     default: return " UNKOWN!!! ";
   }
 }
+
+
+PreRunAAPass::PreRunAAPass(std::string preRunRecordPath): AAPass(PreRun) {
+    std::ifstream infile(preRunRecordPath);
+    std::string line;
+    int poolNum = 0;
+    while(std::getline(infile, line)) {
+        std::stringstream convertor;
+        convertor << line;
+        convertor >> poolNum;
+        if(convertor.fail()) {
+            ctxToMp[line] = poolNum;
+        }
+    }
+    
+}
+
+
+int PreRunAAPass::isNotAllone(const llvm::Value* V, klee::ExecutionState& state) {
+  auto ctxptr = state.getCurrentContext();
+  std::string ctx = state.printContext(*ctxptr);
+  if(ctxToMp.count(ctx) > 0) {
+    errs() << "Found ctx: \n" << ctx << "\n";
+    return ctxToMp[ctx] + 1;
+  }
+  else
+    return 0;
+}
+

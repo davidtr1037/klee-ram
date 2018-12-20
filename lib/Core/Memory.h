@@ -14,6 +14,7 @@
 #include "TimingSolver.h"
 #include "klee/Expr.h"
 #include "klee/util/BitArray.h"
+#include "klee/Internal/Module/InstructionInfoTable.h"
 
 #include "llvm/ADT/StringExtras.h"
 
@@ -76,7 +77,7 @@ public:
   /// should be either the allocating instruction or the global object
   /// it was allocated for (or whatever else makes sense).
   const llvm::Value *allocSite;
-  std::unique_ptr<std::vector<KFunction*>> allocContext;
+  std::unique_ptr<std::vector<std::pair<KFunction*, const InstructionInfo*>>> allocContext;
   
   /// A list of boolean expressions the user has requested be true of
   /// a counterexample. Mutable since we play a little fast and loose
