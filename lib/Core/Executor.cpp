@@ -466,7 +466,8 @@ Executor::setModule(std::vector<std::unique_ptr<llvm::Module>> &modules,
   if(PreRunRecordPath != "") {
     aa = new PreRunAAPass(PreRunRecordPath);   
   } else if(UseSVFPointerAnalysis) {
-      auto SVFaa = new SVFAAPass(FlatConstants);
+      //auto SVFaa = new SVFAAPass(FlatConstants);
+      auto SVFaa = new SVFDeletingAAPass(FlatConstants);
       SVFaa->setPAType(PointerAnalysis::AndersenWaveDiff_WPA);
       SVFaa->setPAType(PointerAnalysis::AndersenWaveDiffWithType_WPA);
 //      SVFaa->setPAType(PointerAnalysis::AndersenLCD_WPA);
@@ -3683,7 +3684,8 @@ void Executor::executeFree(ExecutionState &state,
            ie = rl.end(); it != ie; ++it) {
       const MemoryObject *mo = it->first.first;
       //TODO: This is not freeing manually anotated objects
-      if(FlatMem && aa->isNotAllone(mo->allocSite, state) && !SVFAAPass::isNoopInContext(mo->allocContext.get())) {
+//      if(FlatMem && aa->isNotAllone(mo->allocSite, state) && !SVFAAPass::isNoopInContext(mo->allocContext.get())) {
+      if(FlatMem && mo->pn > -1) {
           MemoryObject *wmo = const_cast<MemoryObject*>(mo);
           const ObjectState* os = it->first.second;
          if(wmo->freeSpace == NULL) wmo->freeSpace = new FreeOffsets();
@@ -3855,7 +3857,10 @@ void Executor::executeMemoryOperation(ExecutionState &state,
       std::set<std::string> allocationContexts;
       for (ResolutionList::iterator i = rl.begin(), ie = rl.end(); i != ie; ++i) {
          const MemoryObject *mo = i->first;
-         allocationContexts.insert(state.printContext(*mo->allocContext));
+         if(mo->allocContext)
+           allocationContexts.insert(state.printContext(*mo->allocContext));
+         else 
+           klee_warning("No allocation context for mo: %p, name: %s\n", mo, mo->name);
       }
       if(ctxToMemoryPool.count(allocationContexts) == 0) {
         ctxToMemoryPool[allocationContexts] = currentMpNumber++;
