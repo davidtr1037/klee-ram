@@ -3879,9 +3879,16 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   if(MergeMRes && (nullptr == state.needToClose)  && rl.size() > 1) {
     state.openMergeStack.push_back(
       ref<MergeHandler>(new MergeHandler(this, &state)));
-    auto it = target->inst->getParent()->rbegin();
-    it++;
-    state.needToClose = &*it;
+    if(isWrite) {
+      klee_warning("Is write in state merging. New code ...");
+      auto it = state.pc->inst->getParent()->rbegin();
+      it++;
+      state.needToClose = &*it;
+    } else {
+      auto it = target->inst->getParent()->rbegin();
+      it++;
+      state.needToClose = &*it;
+    }
 //    errs() << "Open ";
 //    state.pc->printFileLine(errs());
 //    state.needToClose->print(errs());
