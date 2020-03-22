@@ -108,7 +108,6 @@ static unsigned __sym_uint32(const char *name) {
                          writes past the initial file size are discarded 
 			 (file offset is always incremented)
    max_failures: maximum number of system call failures */
-#define INPUT_PATH "/home/david/tau/maps/m4/m4.input"
 void klee_init_fds(unsigned n_files, unsigned file_length,
                    unsigned long long stdin_length, int sym_stdout_flag,
                    int save_all_writes_flag, unsigned max_failures) {
@@ -122,9 +121,21 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
   __exe_fs.sym_files = malloc(sizeof(*__exe_fs.sym_files) * n_files);
   for (k=0; k < n_files; k++) {
     name[0] = 'A' + k;
-    if (k == 0) {
+    const char *input_path = getenv("KLEE_TEMPLATE");
+    char start = 0, end = 0;
+    const char *range_start = getenv("KLEE_TEMPLATE_RANGE_START");
+    const char *range_end = getenv("KLEE_TEMPLATE_RANGE_END");
+
+    if (input_path && k == 0) {
+      printf("Using symbolic template %s\n", input_path);
+      if (range_start && range_end) {
+        start = range_start[0];
+        end = range_end[0];
+        printf("Using range: [%c,%c]\n", start, end);
+      }
+
       char buffer[PATH_MAX];
-      int filedesc = open(INPUT_PATH, O_RDONLY);
+      int filedesc = open(input_path, O_RDONLY);
       file_length = read(filedesc, buffer, PATH_MAX);
       buffer[file_length + 1] = 0;
       printf("Populating %s %u\n", name, file_length);
@@ -133,11 +144,14 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
       for (i = 0; i < file_length; i++) {
         if (buffer[i] == '?') {
           printf("Skipping %u\n", i);
+          if (range_start && range_end) {
+            klee_assume((__exe_fs.sym_files[k].contents[i] >= start) & (__exe_fs.sym_files[k].contents[i] <= end));
+          }
           continue;
         }
         __exe_fs.sym_files[k].contents[i] = buffer[i];
       }
-      stat64(INPUT_PATH, __exe_fs.sym_files[k].stat);
+      stat64(input_path, __exe_fs.sym_files[k].stat);
     } else {
       __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
     }
