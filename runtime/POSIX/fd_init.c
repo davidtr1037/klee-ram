@@ -122,8 +122,18 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
   for (k=0; k < n_files; k++) {
     name[0] = 'A' + k;
     const char *input_path = getenv("KLEE_TEMPLATE");
+    char start = 0, end = 0;
+    const char *range_start = getenv("KLEE_TEMPLATE_RANGE_START");
+    const char *range_end = getenv("KLEE_TEMPLATE_RANGE_END");
+
     if (input_path && k == 0) {
       printf("Using symbolic template %s\n", input_path);
+      if (range_start && range_end) {
+        start = range_start[0];
+        end = range_end[0];
+        printf("Using range: [%c,%c]\n", start, end);
+      }
+
       char buffer[PATH_MAX];
       int filedesc = open(input_path, O_RDONLY);
       file_length = read(filedesc, buffer, PATH_MAX);
@@ -134,6 +144,9 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
       for (i = 0; i < file_length; i++) {
         if (buffer[i] == '?') {
           printf("Skipping %u\n", i);
+          if (range_start && range_end) {
+            klee_assume((__exe_fs.sym_files[k].contents[i] >= start) & (__exe_fs.sym_files[k].contents[i] <= end));
+          }
           continue;
         }
         __exe_fs.sym_files[k].contents[i] = buffer[i];
