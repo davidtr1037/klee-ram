@@ -122,24 +122,39 @@ void klee_init_fds(unsigned n_files, unsigned file_length,
   __exe_fs.sym_files = malloc(sizeof(*__exe_fs.sym_files) * n_files);
   for (k=0; k < n_files; k++) {
     name[0] = 'A' + k;
+    const char *input_path = getenv("KLEE_TEMPLATE");
+    char start = 0, end = 0;
+    const char *range_start = getenv("KLEE_TEMPLATE_RANGE_START");
+    const char *range_end = getenv("KLEE_TEMPLATE_RANGE_END");
 #define PARTIAL_MAKEFILE
 #ifdef PARTIAL_MAKEFILE
-    if(k == 0) {
-    FILE *f;
-    char buffer[500];
-    int i;
-    int filedesc = open("/data/double-deref/doublederef-benchmarks/bin/make.input", O_RDONLY);
-    printf("file desc %d\n", filedesc);
-    file_length = read(filedesc, buffer, 500);
-    buffer[file_length + 1] = 0;
-    printf("Populating A %d\n", file_length);
-    __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
-    for(i = 0; i < file_length; i++) {
-      if(buffer[i] == '?') { printf("Skipping %d\n", i); continue; }
-      __exe_fs.sym_files[k].contents[i] = buffer[i];
-    }
-   stat64("/data/double-deref/doublederef-benchmarks/bin/make.input",__exe_fs.sym_files[k].stat);
-   } else
+    if (input_path && k == 0) {
+      if (range_start && range_end) {
+        start = range_start[0];
+        end = range_end[0];
+        printf("Using range: [%c,%c]\n", start, end);
+      }
+      FILE *f;
+      char buffer[500];
+      int i;
+      int filedesc = open(input_path, O_RDONLY);
+      printf("file desc %d\n", filedesc);
+      file_length = read(filedesc, buffer, 500);
+      buffer[file_length + 1] = 0;
+      printf("Populating A %d\n", file_length);
+      __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
+      for(i = 0; i < file_length; i++) {
+        if(buffer[i] == '?') {
+          printf("Skipping %d\n", i);
+          if (range_start && range_end) {
+            klee_assume((__exe_fs.sym_files[k].contents[i] >= start) & (__exe_fs.sym_files[k].contents[i] <= end));
+          }
+          continue;
+        }
+        __exe_fs.sym_files[k].contents[i] = buffer[i];
+      }
+      stat64(input_path, __exe_fs.sym_files[k].stat);
+    } else
       __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
 #else
     __create_new_dfile(&__exe_fs.sym_files[k], file_length, name, &s);
