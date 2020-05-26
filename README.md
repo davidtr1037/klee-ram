@@ -95,7 +95,7 @@ The main options are:
 - _split-objects_: enable dynamic splitting of objects
 
 Merging related options:
-- _reuse-segments_: reuse previously allocated segments
+- _reuse-segments_: reuse previously allocated segments (supported with deterministic allocator)
 - _use-context-resolve=1_: use context-based resolution
 - _use-kcontext=k_: use k-context abstraction for context-based resolution (default: k = 0)
 
