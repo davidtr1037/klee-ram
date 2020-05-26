@@ -426,7 +426,7 @@ cl::opt<bool> UseBatchRebase("use-batch-rebase", cl::init(false), cl::desc("..."
 
 cl::opt<bool> UseAheadRebase("use-ahead-rebase", cl::init(false), cl::desc("..."));
 
-cl::opt<unsigned> PartitionSize("partition-size", cl::init(100), cl::desc("..."));
+cl::opt<unsigned> PartitionSize("partition-size", cl::init(128), cl::desc("..."));
 
 cl::opt<bool> SplitObjects("split-objects", cl::init(false), cl::desc("..."));
 
