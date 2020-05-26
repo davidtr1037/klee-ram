@@ -420,7 +420,7 @@ cl::opt<bool> ExtendSegments("extend-segments", cl::init(false), cl::desc("...")
 
 cl::opt<unsigned> ReserveSize("reserve-size", cl::init(200), cl::desc("..."));
 
-cl::opt<unsigned> UseContextResolve("use-context-resolve", cl::init(false), cl::desc("..."));
+cl::opt<bool> UseContextResolve("use-context-resolve", cl::init(false), cl::desc("..."));
 
 cl::opt<bool> UseBatchRebase("use-batch-rebase", cl::init(false), cl::desc("..."));
 

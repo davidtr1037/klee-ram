@@ -96,7 +96,7 @@ The main options are:
 
 Merging related options:
 - _reuse-segments_: reuse previously allocated segments (supported with deterministic allocator)
-- _use-context-resolve=1_: use context-based resolution
+- _use-context-resolve_: use context-based resolution
 - _use-kcontext=k_: use k-context abstraction for context-based resolution (default: k = 0)
 
 Splitting related options:
