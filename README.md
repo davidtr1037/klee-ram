@@ -90,11 +90,18 @@ make -j4
 ### Command Line Options
 We extended KLEE with several command line options.
 The main options are:
-- _use-sym-addr_: use the addressing model described in the paper (section 2.2)
-- _use-rebase_: enable dynamic merging of objects (section 2.3)
-- _split-objects_: enable dynamic splitting of objects (section 2.4)
-- _split-threshold=N_: split objects larger than _N_ bytes (section 2.4)
-- _partition-size=N_: set the size of the split objects (section 2.4)
+- _use-sym-addr_: use the addressing model described in the paper
+- _use-rebase_: enable dynamic merging of objects
+- _split-objects_: enable dynamic splitting of objects
+
+Merging related options:
+- _reuse-segments_: reuse previously allocated segments
+- _use-context-resolve=1_: use context-based resolution
+- _use-kcontext=k_: use k-context abstraction for context-based resolution (default: k = 0)
+
+Splitting related options:
+- _split-threshold=N_: split objects larger than _N_ bytes
+- _partition-size=N_: set the size of the split objects
 
 ### Example
 Suppose that we have the following program:
