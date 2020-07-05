@@ -133,8 +133,8 @@ Compile the program:
 clang -c -g -emit-llvm -I <klee_include_dir> <source_file> -o <bitcode_file>
 ```
 
-#### Vanilla KLEE
-When we analyze this program with vanilla KLEE:
+#### Baseline KLEE
+When we analyze this program with baseline KLEE:
 ```
 klee -libc=uclibc <bitcode_file>
 ```
@@ -154,11 +154,11 @@ To analyze the program with the dynamic splitting approach, use the following co
 klee -libc=uclibc -use-sym-addr -split-objects -split-threshold=100 -partition-size=64 <bitcode_file>
 ```
 Here, when a _big object_ (w.r.t. the specified threshold) is accessed with a symbolic offset, it is split to smaller objects of at most 64 bytes.
-As in vanilla KLEE, the symbolic pointer `array[i][j]` is resolved here to two objects, which leads to a fork.
+As in baseline KLEE, the symbolic pointer `array[i][j]` is resolved here to two objects, which leads to a fork.
 Then, each of the forked states accesses a big object (of size 256) with a symbolic offset,
 so the accessed object is dynamically split into 4 objects.
 After the split, the symbolic pointer `array[i][j]` is resolved to the first two smaller objects (since _j < 100_), and we have an additional fork.
-In total we have 4 explored paths, which is more than we have with vanilla KLEE,
+In total we have 4 explored paths, which is more than we have with baseline KLEE,
 but the created SMT arrays are smaller.
 That can be seen if looking at the query log:
 ```
