@@ -3932,6 +3932,9 @@ void Executor::runFunctionAsMain(Function *f,
 				 int argc,
 				 char **argv,
 				 char **envp) {
+  if (UseContextResolve && !UseRebase) {
+    klee_error("context-based resolution can be used only when merging objects");
+  }
   std::vector<ref<Expr> > arguments;
 
   ExecutionState *state = new ExecutionState(kmodule->functionMap[f], memory);
