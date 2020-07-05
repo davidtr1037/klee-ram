@@ -402,7 +402,7 @@ cl::opt<bool> DebugCheckForImpliedValues(
 
 cl::opt<bool> UseSymAddr("use-sym-addr", cl::init(false), cl::desc("..."));
 
-cl::opt<bool> UseRebase("use-rebase", cl::init(false), cl::desc("..."));
+cl::opt<bool> MergeObjects("merge-objects", cl::init(false), cl::desc("..."));
 
 cl::opt<bool> SortObjects("sort-objects", cl::init(true), cl::desc("..."));
 
@@ -3781,7 +3781,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
     return;
   }
 
-  if (UseRebase && !rl.empty()) {
+  if (MergeObjects && !rl.empty()) {
     if (rebaseObjects(state, rl)) {
       executeMemoryOperation(state, isWrite, originalAddress, value, target, true);
       return;
@@ -3928,7 +3928,7 @@ void Executor::runFunctionAsMain(Function *f,
 				 int argc,
 				 char **argv,
 				 char **envp) {
-  if (UseContextResolve && !UseRebase) {
+  if (UseContextResolve && !MergeObjects) {
     klee_error("context-based resolution can be used only when merging objects");
   }
   if (ReuseSegments && !memory->usingDeterministicAllocation()) {
