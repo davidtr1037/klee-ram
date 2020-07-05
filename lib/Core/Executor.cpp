@@ -414,13 +414,13 @@ cl::opt<bool> UseCachedResolution("use-cached-resolution", cl::init(false), cl::
 
 cl::opt<bool> UseRecursiveRebase("use-recursive-rebase", cl::init(true), cl::desc("..."));
 
+/* this option is experimental... */
 cl::opt<bool> ExtendSegments("extend-segments", cl::init(false), cl::desc("..."));
 
+/* this option is experimental... */
 cl::opt<unsigned> ReserveSize("reserve-size", cl::init(200), cl::desc("..."));
 
 cl::opt<bool> UseContextResolve("use-context-resolve", cl::init(false), cl::desc("..."));
-
-cl::opt<bool> UseBatchRebase("use-batch-rebase", cl::init(false), cl::desc("..."));
 
 cl::opt<unsigned> PartitionSize("partition-size", cl::init(128), cl::desc("..."));
 
@@ -4302,17 +4302,6 @@ void Executor::rebaseObject(ExecutionState &state, ObjectPair &op) {
 
 /* TODO: remove code duplication */
 bool Executor::rebaseObjects(ExecutionState &state, std::vector<ObjectPair> ops) {
-  if (UseBatchRebase) {
-    std::vector<ObjectPair> rebasedOps;
-    getRebasedObjects(state, rebasedOps);
-    for (ObjectPair op : rebasedOps) {
-      klee_message("adding additional object: %lu", op.first->address);
-      if (std::find(ops.begin(), ops.end(), op) == ops.end()) {
-        ops.push_back(op);
-      }
-    }
-  }
-
   if (SortObjects) {
     std::sort(
       ops.begin(),
