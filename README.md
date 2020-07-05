@@ -91,7 +91,7 @@ make -j4
 We extended KLEE with several command line options.
 The main options are:
 - _use-sym-addr_: use the addressing model described in the paper
-- _use-rebase_: enable dynamic merging of objects
+- _merge-objects_: enable dynamic merging of objects
 - _split-objects_: enable dynamic splitting of objects
 
 Merging related options:
@@ -143,7 +143,7 @@ we get 2 explored paths, since the symbolic pointer `array[i][j]` is resolved to
 #### Merging
 To analyze the program with the dynamic merging approach, use the following command:
 ```
-klee -libc=uclibc -use-sym-addr -use-rebase <bitcode_file>
+klee -libc=uclibc -use-sym-addr -merge-objects <bitcode_file>
 ```
 Now, you will see that only one path is explored,
 since the two objects pointed by the symbolic pointer are dynamically merged into one segment.
