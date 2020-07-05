@@ -343,7 +343,7 @@ private:
                               ref<Expr> value /* undef if read */,
                               KInstruction *target /* undef if write */,
                               bool retry = false,
-                              bool forceSolver = false);
+                              bool forceDefaultResolution = false);
 
   void executeMakeSymbolic(ExecutionState &state, const MemoryObject *mo,
                            const std::string &name);

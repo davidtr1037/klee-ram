@@ -3664,7 +3664,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
                                       ref<Expr> value /* undef if read */,
                                       KInstruction *target /* undef if write */,
                                       bool retry,
-                                      bool forceSolver) {
+                                      bool forceDefaultResolution) {
   /* save the address expression, before the substitution */
   ref<Expr> originalAddress = address;
 
@@ -3769,7 +3769,7 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   bool incomplete = false;
 
   std::vector<AllocationContext> contexts;
-  if (!forceSolver && UseContextResolve) {
+  if (!forceDefaultResolution && UseContextResolve) {
     getResolvedContexts(state, contexts);
   }
   address = optimizer.optimizeExpr(address, true);
