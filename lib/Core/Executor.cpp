@@ -408,8 +408,6 @@ cl::opt<bool> SortObjects("sort-objects", cl::init(true), cl::desc("..."));
 
 cl::opt<bool> ReuseSegments("reuse-segments", cl::init(false), cl::desc("..."));
 
-cl::opt<bool> RebaseReachable("rebase-reachable", cl::init(false), cl::desc("..."));
-
 cl::opt<unsigned> ReachabilityDepth("reachability-depth", cl::init(0), cl::desc("..."));
 
 cl::opt<bool> UseCachedResolution("use-cached-resolution", cl::init(false), cl::desc("..."));
@@ -3793,13 +3791,6 @@ void Executor::executeMemoryOperation(ExecutionState &state,
     solver->setTimeout(time::Span());
     klee_message("multiple resolution (solver): %lu", rl.size());
     updateResolveCache(state, rl);
-  }
-
-  if (RebaseReachable) {
-    ResolutionList reachable;
-    traverseAll(state, rl, ReachabilityDepth, reachable);
-    rl = reachable;
-    klee_message("traversed %lu objects", rl.size());
   }
 
   if (UseRebase && !rl.empty()) {
