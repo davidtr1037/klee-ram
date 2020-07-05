@@ -4745,42 +4745,6 @@ void Executor::getRebasedObjects(ExecutionState &state, std::vector<ObjectPair> 
   }
 }
 
-const Array *Executor::findUsedArray(ExecutionState &state, const MemoryObject *mo) {
-  for (RebaseInfo &ri : RebaseCache::getRebaseCache()->rebased) {
-    if (ri.mo->address == mo->address && ri.mo->size == mo->size) {
-      ObjectState *os = ri.oh;
-      return os->getArray();
-    }
-  }
-  return nullptr;
-}
-
-void Executor::rebaseObjectsAhead(ExecutionState &state) {
-  for (RebaseInfo &ri : RebaseCache::getRebaseCache()->rebased) {
-    if (ri.rid.info->id == state.prevPC->info->id) {
-      std::vector<ObjectPair> ops;
-      if (getMatchingOps(state, ri.rid, ops)) {
-        klee_message("rebasing ahead %lu objects", ops.size());
-        rebaseObjects(state, ops);
-      }
-    }
-  }
-}
-
-bool Executor::getMatchingOps(ExecutionState &state,
-                              RebaseID &rid,
-                              std::vector<ObjectPair> &ops) {
-  for (uint64_t addr : rid.addrs) {
-    ObjectPair op;
-    if (!state.addressSpace.resolveOne(ConstantExpr::create(addr, Expr::Int64), op)) {
-      return false;
-    }
-    ops.push_back(op);
-  }
-
-  return true;
-}
-
 void Executor::prepareForEarlyExit() {
   if (statsTracker) {
     // Make sure stats get flushed out

@@ -41,7 +41,6 @@ class PTreeNode;
 struct InstructionInfo;
 
 extern llvm::cl::opt<bool> UseLocalSymAddr;
-extern llvm::cl::opt<bool> ReuseArrays;
 extern llvm::cl::opt<unsigned> UseKContext;
 extern llvm::cl::opt<bool> UseGlobalID;
 extern llvm::cl::opt<bool> UseGlobalRewriteCache;
@@ -342,10 +341,6 @@ public:
   ref<Expr> unfold(const ref<Expr> address) const;
 
   UpdateList rewriteUL(const UpdateList &ul, const Array *array) const;
-
-  UpdateList initializeRewrittenUL(ObjectState *os, const UpdateList &ul) const;
-
-  bool findRewrittenObject(const UpdateList &ul, const MemoryObject *&mo, ObjectState *&os) const;
 
   UpdateList getRewrittenUL(const UpdateList &ul) const;
 

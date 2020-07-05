@@ -46,8 +46,6 @@ cl::opt<bool> DebugLogStateMerge(
 
 cl::opt<bool> klee::UseLocalSymAddr("use-local-sym-addr", cl::init(false), cl::desc("..."));
 
-cl::opt<bool> klee::ReuseArrays("reuse-arrays", cl::init(true), cl::desc("..."));
-
 cl::opt<unsigned> klee::UseKContext("use-kcontext", cl::init(0), cl::desc("..."));
 
 cl::opt<bool> klee::UseGlobalID("use-global-id", cl::init(false), cl::desc("..."));
@@ -788,47 +786,6 @@ UpdateList ExecutionState::rewriteUL(const UpdateList &ul, const Array *array) c
   }
 
   return updates;
-}
-
-UpdateList ExecutionState::initializeRewrittenUL(ObjectState *os,
-                                                 const UpdateList &ul) const {
-  if (!ReuseArrays) {
-    return rewriteUL(ul, NULL);
-  }
-
-  RebaseCache *rc = RebaseCache::getRebaseCache();
-  return rc->find(*this, os, ul);
-}
-
-/* TODO: move to AddressSpace? */
-bool ExecutionState::findRewrittenObject(const UpdateList &ul,
-                                         const MemoryObject *&mo,
-                                         ObjectState *&os) const {
-  for (auto i : addressSpace.objects) {
-    mo = i.first;
-    os = i.second;
-    if (os->updates.root == ul.root) {
-      return true;
-    }
-  }
-
-  for (auto i : addressSpace.rewrittenObjects) {
-    mo = i.first;
-    os = i.second;
-    if (os->updates.root == ul.root) {
-      return true;
-    }
-  }
-
-  for (auto i : addressSpace.deallocatedObjects) {
-    mo = i.first;
-    os = i.second;
-    if (os->updates.root == ul.root) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 UpdateList ExecutionState::getRewrittenUL(const UpdateList &ul) const {
