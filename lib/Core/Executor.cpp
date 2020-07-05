@@ -3754,44 +3754,40 @@ void Executor::executeMemoryOperation(ExecutionState &state,
   // resolution with out of bounds)
 
   if (retry) {
-    klee_error("Unexpected multiple resolution...");
+    if (UseContextResolve) {
+      klee_warning("incomplete resolution, using default resolution...");
+      executeMemoryOperation(state, isWrite, originalAddress, value, target, false, true);
+      return;
+    } else {
+      /* something went wrong... */
+      klee_error("Unexpected multiple resolution...");
+    }
   }
 
+  klee_message("resolving...");
   ResolutionList rl;
   bool incomplete = false;
 
-  klee_message("resolving...");
-  std::set<uint64_t> ids;
-  if (UseCachedResolution && !forceSolver) {
-    getArrays(state, ids);
+  std::vector<AllocationContext> contexts;
+  if (!forceSolver && UseContextResolve) {
+    getResolvedContexts(state, contexts);
   }
-  bool usingAlternativeResolve = !ids.empty();
+  address = optimizer.optimizeExpr(address, true);
+  solver->setTimeout(coreSolverTimeout);
+  incomplete = state.addressSpace.resolve(state, solver, address, rl, contexts, 0, coreSolverTimeout);
+  solver->setTimeout(time::Span());
+  klee_message("multiple resolution (solver): %lu", rl.size());
+  updateResolveCache(state, rl);
 
-  if (usingAlternativeResolve) {
-    state.addressSpace.resolveByID(state, ids, rl);
-    klee_message("multiple resolution (alternative): %lu", rl.size());
-  }
-
-  if (rl.empty()) {
-    std::vector<AllocationContext> contexts;
-    if (UseContextResolve) {
-      getResolvedContexts(state, contexts);
-    }
-    address = optimizer.optimizeExpr(address, true);
-    solver->setTimeout(coreSolverTimeout);
-    incomplete = state.addressSpace.resolve(state, solver, address, rl, contexts, 0, coreSolverTimeout);
-    solver->setTimeout(time::Span());
-    klee_message("multiple resolution (solver): %lu", rl.size());
-    updateResolveCache(state, rl);
+  if (UseContextResolve && rl.empty()) {
+    klee_warning("possible incomplete resolution, using default resolution...");
+    executeMemoryOperation(state, isWrite, originalAddress, value, target, false, true);
+    return;
   }
 
   if (UseRebase && !rl.empty()) {
     if (rebaseObjects(state, rl)) {
-      if (usingAlternativeResolve) {
-        executeMemoryOperation(state, isWrite, originalAddress, value, target, false, true);
-      } else {
-        executeMemoryOperation(state, isWrite, originalAddress, value, target, true);
-      }
+      executeMemoryOperation(state, isWrite, originalAddress, value, target, true);
       return;
     }
     klee_message("%p: rebase failed...", &state);
