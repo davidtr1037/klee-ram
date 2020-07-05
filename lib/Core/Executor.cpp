@@ -408,10 +408,6 @@ cl::opt<bool> SortObjects("sort-objects", cl::init(true), cl::desc("..."));
 
 cl::opt<bool> ReuseSegments("reuse-segments", cl::init(false), cl::desc("..."));
 
-cl::opt<unsigned> ReachabilityDepth("reachability-depth", cl::init(0), cl::desc("..."));
-
-cl::opt<bool> UseCachedResolution("use-cached-resolution", cl::init(false), cl::desc("..."));
-
 cl::opt<bool> UseRecursiveRebase("use-recursive-rebase", cl::init(true), cl::desc("..."));
 
 /* this option is experimental... */
