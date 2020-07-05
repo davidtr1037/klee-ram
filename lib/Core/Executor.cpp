@@ -422,8 +422,6 @@ cl::opt<bool> UseContextResolve("use-context-resolve", cl::init(false), cl::desc
 
 cl::opt<bool> UseBatchRebase("use-batch-rebase", cl::init(false), cl::desc("..."));
 
-cl::opt<bool> UseAheadRebase("use-ahead-rebase", cl::init(false), cl::desc("..."));
-
 cl::opt<unsigned> PartitionSize("partition-size", cl::init(128), cl::desc("..."));
 
 cl::opt<bool> SplitObjects("split-objects", cl::init(false), cl::desc("..."));
@@ -3757,12 +3755,6 @@ void Executor::executeMemoryOperation(ExecutionState &state,
 
   if (retry) {
     klee_error("Unexpected multiple resolution...");
-  }
-
-  if (UseAheadRebase && !forceSolver) {
-    rebaseObjectsAhead(state);
-    executeMemoryOperation(state, isWrite, originalAddress, value, target, false, true);
-    return;
   }
 
   ResolutionList rl;
