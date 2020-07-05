@@ -60,6 +60,10 @@ public:
    * Returns the size used by deterministic allocation in bytes
    */
   size_t getUsedDeterministicSize();
+
+  bool usingDeterministicAllocation() {
+    return deterministicSpace != NULL;
+  }
 };
 
 } // End klee namespace

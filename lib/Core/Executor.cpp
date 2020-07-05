@@ -3935,6 +3935,10 @@ void Executor::runFunctionAsMain(Function *f,
   if (UseContextResolve && !UseRebase) {
     klee_error("context-based resolution can be used only when merging objects");
   }
+  if (ReuseSegments && !memory->usingDeterministicAllocation()) {
+    klee_error("reusing segments is currently not supported with non-deterministic memory");
+  }
+
   std::vector<ref<Expr> > arguments;
 
   ExecutionState *state = new ExecutionState(kmodule->functionMap[f], memory);
