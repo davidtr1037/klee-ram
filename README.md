@@ -1,6 +1,10 @@
 Relocatable Addressing Model for KLEE
 =============================
 
+The _relocatable addressing model_ enables dynamic merging and splitting of object representations.
+More details can be found in this [paper](https://dl.acm.org/doi/10.1145/3395363.3397363).
+This tool is an implementation of that model on top of KLEE.
+
 ## Build
 
 ### Requirements
